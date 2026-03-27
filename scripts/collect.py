@@ -162,7 +162,7 @@ def flat_signals(config: dict) -> dict:
 
 def safe_get(url, **kwargs):
     try:
-        return requests.get(url, timeout=15, **kwargs)
+        return requests.get(url, timeout=30, **kwargs)
     except Exception as e:
         log.warning(f"  Request failed: {e}")
         return None
@@ -442,9 +442,9 @@ def fetch_rss(geo: str) -> dict:
 # Retry logic: 429 and empty responses are retried up to 3× with backoff.
 # The 5s sleep covers the rate limit; retries add extra spacing.
 
-GDELT_RETRY   = 3
-GDELT_SLEEP   = 6.0   # slightly over 5s to account for response time
-GDELT_BACKOFF = 10.0  # extra sleep on 429
+GDELT_RETRY   = 4
+GDELT_SLEEP   = 6.5    # just over 5s rate limit, allows for response time
+GDELT_BACKOFF = 15.0   # extra sleep on 429 or timeout
 
 
 def _gdelt_get(params: dict) -> requests.Response | None:
@@ -481,9 +481,11 @@ def fetch_gdelt_signal(signal_query: str, market: str, timespan: str = "24h") ->
     """
     geo   = MARKET_GDELT_GEO.get(market, market)
     # GDELT only allows parens around multi-term OR groups, not single words
-    sig_part = f"({signal_query})" if " " in signal_query else signal_query
-    geo_part = f"({geo})"          if " " in geo           else geo
-    query    = f"{sig_part} {geo_part}"
+    # GDELT only allows parens around OR groups — plain space = AND.
+    # Cap keywords to avoid query-too-long rejections.
+    sig_terms = " ".join(signal_query.split()[:5])
+    geo_terms = " ".join(geo.split()[:3])
+    query     = f"{sig_terms} {geo_terms}"
     params = {
         "query":      query,
         "mode":       "artlist",
@@ -558,12 +560,12 @@ def fetch_gdelt_backfill(signals: dict, days: int = 30) -> dict:
             if result[market_name].get(sig_key):
                 continue  # already loaded from partial checkpoint
 
-            query    = cfg.get("gdelt_query") or cfg.get("news", sig_key)
-            geo      = MARKET_GDELT_GEO.get(market_name, market_name)
-            sig_part = f"({query})" if " " in query else query
-            geo_part = f"({geo})"   if " " in geo   else geo
-            params   = {
-                "query":    f"{sig_part} {geo_part}",
+            query     = cfg.get("gdelt_query") or cfg.get("news", sig_key)
+            geo       = MARKET_GDELT_GEO.get(market_name, market_name)
+            sig_terms = " ".join(query.split()[:5])
+            geo_terms = " ".join(geo.split()[:3])
+            params    = {
+                "query":    f"{sig_terms} {geo_terms}",
                 "mode":     "timelinevol",
                 "timespan": timespan,
                 "format":   "json",
