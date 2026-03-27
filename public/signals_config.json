@@ -1,6 +1,4 @@
 {
-  "ramadan_active": true,
-  "ramadan_end": "2026-03-30",
   "categories": {
     "escapism": {
       "label": "Escapism & Entertainment",
@@ -385,65 +383,8 @@
           "gdelt_query": "community event gathering neighbourhood local"
         }
       }
-    },
-    "ramadan": {
-      "label": "Ramadan",
-      "icon": "☽",
-      "color": "#FCFE67",
-      "hypothesis": "Ramadan shifts consumption patterns — iftar, late-night, Eid prep",
-      "ramadan_only": true,
-      "signals": {
-        "iftar_delivery": {
-          "label": "Iftar Delivery",
-          "news": "iftar delivery food ramadan break fast",
-          "guardian": "ramadan iftar",
-          "reddit_subs": [
-            "saudiarabia",
-            "dubai",
-            "islam"
-          ],
-          "reddit_query": "iftar food delivery ramadan break fast",
-          "gdelt_query": "iftar Ramadan food delivery break fast"
-        },
-        "late_night": {
-          "label": "Late-night Entertainment",
-          "news": "late night entertainment show streaming ramadan",
-          "guardian": "ramadan entertainment",
-          "reddit_subs": [
-            "saudiarabia",
-            "dubai",
-            "AskMiddleEast"
-          ],
-          "reddit_query": "late night ramadan entertainment streaming",
-          "gdelt_query": "late night Ramadan entertainment streaming"
-        },
-        "eid_shopping": {
-          "label": "Eid Shopping",
-          "news": "eid shopping fashion clothes gifts",
-          "guardian": "eid",
-          "reddit_subs": [
-            "islam",
-            "saudiarabia",
-            "dubai"
-          ],
-          "reddit_query": "eid shopping clothes gifts fashion",
-          "gdelt_query": "Eid shopping gifts fashion clothes"
-        },
-        "suhoor": {
-          "label": "Suhoor Food",
-          "news": "suhoor food recipes ramadan morning meal",
-          "guardian": "suhoor ramadan",
-          "reddit_subs": [
-            "islam",
-            "saudiarabia",
-            "Cooking"
-          ],
-          "reddit_query": "suhoor food ramadan morning meal recipes",
-          "gdelt_query": "suhoor Ramadan morning meal food"
-        }
-      }
     }
   },
   "last_updated": "2026-03-27T00:00:00Z",
-  "updated_by": "collect_v3"
+  "updated_by": "collect_v4"
 }

@@ -28,46 +28,102 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 log = logging.getLogger(__name__)
 
-MARKETS = {"AE": "UAE", "SA": "KSA", "KW": "Kuwait", "QA": "Qatar"}
+# Full MENA coverage: GCC + Levant + North Africa + Yemen
+MARKETS = {
+    # GCC
+    "AE": "UAE",
+    "SA": "Saudi Arabia",
+    "KW": "Kuwait",
+    "QA": "Qatar",
+    "BH": "Bahrain",
+    "OM": "Oman",
+    # Levant
+    "LB": "Lebanon",
+    "JO": "Jordan",
+    "IQ": "Iraq",
+    "SY": "Syria",
+    # North Africa
+    "EG": "Egypt",
+    # Yemen
+    "YE": "Yemen",
+}
 
-# Geo search terms used across GDELT, Google News RSS, and blending
+# Geo search terms for GDELT, Google News RSS, and blending
 MARKET_GEO_TERMS = {
-    "UAE":    "UAE OR Dubai OR \"Abu Dhabi\" OR Emirates",
-    "KSA":    "\"Saudi Arabia\" OR Riyadh OR Jeddah OR KSA",
-    "Kuwait": "Kuwait",
-    "Qatar":  "Qatar OR Doha",
+    "UAE":          "UAE OR Dubai OR \"Abu Dhabi\" OR Emirates",
+    "Saudi Arabia": "\"Saudi Arabia\" OR Riyadh OR Jeddah OR KSA",
+    "Kuwait":       "Kuwait",
+    "Qatar":        "Qatar OR Doha",
+    "Bahrain":      "Bahrain OR Manama",
+    "Oman":         "Oman OR Muscat",
+    "Lebanon":      "Lebanon OR Beirut",
+    "Jordan":       "Jordan OR Amman",
+    "Iraq":         "Iraq OR Baghdad OR Basra",
+    "Syria":        "Syria OR Damascus OR Aleppo",
+    "Egypt":        "Egypt OR Cairo OR Alexandria",
+    "Yemen":        "Yemen OR Sanaa OR Aden OR Houthi",
 }
 
-# GDELT uses simplified OR syntax (no quotes in the URL term list)
+# GDELT plain OR syntax
 MARKET_GDELT_GEO = {
-    "UAE":    "UAE Dubai Emirates",
-    "KSA":    "\"Saudi Arabia\" Riyadh Jeddah KSA",
-    "Kuwait": "Kuwait",
-    "Qatar":  "Qatar Doha",
+    "UAE":          "UAE Dubai Emirates",
+    "Saudi Arabia": "\"Saudi Arabia\" Riyadh Jeddah KSA",
+    "Kuwait":       "Kuwait",
+    "Qatar":        "Qatar Doha",
+    "Bahrain":      "Bahrain Manama",
+    "Oman":         "Oman Muscat",
+    "Lebanon":      "Lebanon Beirut",
+    "Jordan":       "Jordan Amman",
+    "Iraq":         "Iraq Baghdad Basra",
+    "Syria":        "Syria Damascus Aleppo",
+    "Egypt":        "Egypt Cairo Alexandria",
+    "Yemen":        "Yemen Sanaa Aden Houthi",
 }
 
-# MENA news sites piped through Google News RSS gn() trick
-# These cover Al Arabiya, Gulf News, Arab News, Khaleej Times, The National
+# MENA news sites for Google News RSS proxy
 MENA_RSS_SITES = [
     "english.alarabiya.net",
     "gulfnews.com",
     "arabnews.com",
     "khaleejtimes.com",
     "thenationalnews.com",
+    "egyptindependent.com",
+    "dailystar.com.lb",
+    "jordantimes.com",
 ]
 
-# ACLED country names for each market + regional neighbours that affect sentiment
+# ACLED: each market queries itself + high-influence conflict neighbours
 ACLED_COUNTRIES = {
-    "UAE":    ["United Arab Emirates", "Yemen", "Iran"],
-    "KSA":    ["Saudi Arabia", "Yemen", "Iraq"],
-    "Kuwait": ["Kuwait", "Iraq", "Iran"],
-    "Qatar":  ["Qatar", "Yemen", "Syria"],
+    "UAE":          ["United Arab Emirates", "Yemen", "Iran"],
+    "Saudi Arabia": ["Saudi Arabia", "Yemen", "Iraq"],
+    "Kuwait":       ["Kuwait", "Iraq", "Iran"],
+    "Qatar":        ["Qatar", "Yemen"],
+    "Bahrain":      ["Bahrain", "Iran"],
+    "Oman":         ["Oman", "Yemen"],
+    "Lebanon":      ["Lebanon", "Syria", "Israel"],
+    "Jordan":       ["Jordan", "Syria", "Iraq"],
+    "Iraq":         ["Iraq", "Syria", "Iran"],
+    "Syria":        ["Syria", "Iraq", "Lebanon"],
+    "Egypt":        ["Egypt", "Libya", "Sudan"],
+    "Yemen":        ["Yemen"],
 }
 
-SPORT_KW  = ["football","soccer","game","match","vs","ucl","league","cup","sport",
-             "film","movie","music","cricket","ipl","nba","f1","basketball"]
-CRISIS_KW = ["war","attack","crisis","shortage","price","inflation","ban",
-             "sanction","protest","arrest","flood","earthquake","strike","conflict"]
+# Keyword sets for topic classification
+SPORT_KW        = ["football","soccer","game","match","vs","ucl","league","cup","sport",
+                   "film","movie","music","cricket","ipl","nba","f1","basketball","psl",
+                   "series","tournament","grand prix","formula"]
+CRISIS_KW       = ["war","attack","crisis","shortage","price","inflation","ban",
+                   "sanction","protest","arrest","flood","earthquake","strike","conflict",
+                   "ceasefire","airstrike","bombing","casualties","hostage","missile",
+                   "explosion","killed","dead","displaced","refugee","famine"]
+ECONOMIC_KW     = ["inflation","price","cost","economy","gdp","recession","unemployment",
+                   "dollar","currency","oil","interest rate","tariff","trade","budget"]
+ENTERTAINMENT_KW= ["series","show","film","movie","singer","actor","music","concert",
+                   "award","celebrity","drama","reality","song","album","release"]
+TECH_KW         = ["ai","artificial intelligence","tech","apple","google","samsung",
+                   "phone","app","software","startup","innovation","digital"]
+POLITICS_KW     = ["election","president","minister","parliament","government","policy",
+                   "vote","law","court","deal","summit","treaty","sanctions","diplomatic"]
 
 BACKFILL_DAYS = 30
 
@@ -76,7 +132,6 @@ OUTPUT_PATH  = BASE_PATH / "public" / "pulse_data.json"
 HISTORY_PATH = BASE_PATH / "public" / "pulse_history.json"
 CONFIG_PATH  = BASE_PATH / "public" / "signals_config.json"
 
-REDDIT_HEADERS = {"User-Agent": "CrisisPulse/3.0 (github-actions daily aggregator)"}
 GDELT_BASE     = "https://api.gdeltproject.org/api/v2/doc/doc"
 GNEWS_BASE     = "https://news.google.com/rss/search"
 
@@ -93,16 +148,9 @@ def load_config() -> dict:
 def flat_signals(config: dict) -> dict:
     out = {}
     now            = datetime.now(timezone.utc).date()
-    ramadan_active = config.get("ramadan_active", False)
-    ramadan_end    = config.get("ramadan_end", "")
-    if ramadan_end:
-        try:
-            ramadan_active = ramadan_active and now <= datetime.fromisoformat(ramadan_end).date()
-        except:
-            pass
     for cat_key, cat in config["categories"].items():
-        if cat.get("ramadan_only") and not ramadan_active:
-            continue
+        if cat.get("ramadan_only"):
+            continue  # Ramadan-specific signals permanently excluded
         for sig_key, sig in cat["signals"].items():
             out[sig_key] = {**sig, "category": cat_key, "category_label": cat["label"],
                             "color": cat["color"], "icon": cat["icon"]}
@@ -141,117 +189,254 @@ def save_history(h: list):
     HISTORY_PATH.write_text(json.dumps(h, indent=2))
 
 
-# ── Source 1: Reddit (unchanged from v2) ─────────────────────────────────────
+# ── Source 1: Reddit via Arctic Shift ────────────────────────────────────────
+#
+# Arctic Shift (arctic-shift.photon-reddit.com) is a Reddit data archive with
+# a public API designed for bulk queries — no auth, no IP blocking, supports
+# exact date ranges. Replaces reddit.com/search.json which blocks GitHub IPs.
+#
+# API: GET /api/posts/search
+#   ?subreddit=NAME  — single subreddit (no comma-separated support)
+#   ?query=KEYWORDS  — full-text search over title + selftext
+#   ?after=ISO8601   — lower bound (inclusive)
+#   ?before=ISO8601  — upper bound (exclusive)
+#   ?limit=100       — max 100 per call
+# Returns { data: [ {title, selftext, subreddit, created_utc, score, ...} ] }
 
-def fetch_reddit_signal(subreddits: list, query: str, days: int = 1) -> int:
-    cutoff    = datetime.now(timezone.utc) - timedelta(days=days)
-    cutoff_ts = cutoff.timestamp()
-    total     = 0
+ARCTIC_BASE = "https://arctic-shift.photon-reddit.com/api/posts/search"
+
+
+def fetch_arctic_signal(subreddits: list, query: str,
+                        after: datetime, before: datetime) -> int:
+    """
+    Count posts matching `query` across `subreddits` between after and before.
+    Queries each subreddit individually (API doesn't support multi-sub in one call).
+    Returns raw post count.
+    """
+    total      = 0
+    after_str  = after.strftime("%Y-%m-%dT%H:%M:%SZ")
+    before_str = before.strftime("%Y-%m-%dT%H:%M:%SZ")
+
     for sub in subreddits[:3]:
-        url    = f"https://www.reddit.com/r/{sub}/search.json"
-        params = {"q": query, "sort": "new",
-                  "t": "week" if days <= 7 else "month",
-                  "limit": 100, "restrict_sr": 1}
-        r = safe_get(url, headers=REDDIT_HEADERS, params=params)
+        params = {
+            "subreddit": sub,
+            "query":     query,
+            "after":     after_str,
+            "before":    before_str,
+            "limit":     100,
+        }
+        r = safe_get(ARCTIC_BASE, params=params)
         if not r or r.status_code != 200:
-            r2 = safe_get(f"https://www.reddit.com/r/{sub}/new.json",
-                          headers=REDDIT_HEADERS, params={"limit": 100})
-            if r2 and r2.status_code == 200:
-                try:
-                    posts = r2.json().get("data", {}).get("children", [])
-                    kws   = query.lower().split()
-                    for p in posts:
-                        d = p.get("data", {})
-                        if d.get("created_utc", 0) < cutoff_ts:
-                            continue
-                        text = (d.get("title","") + " " + d.get("selftext","")).lower()
-                        if any(kw in text for kw in kws):
-                            total += 1
-                except:
-                    pass
-            time.sleep(0.6)
+            log.warning(f"  Arctic Shift {r.status_code if r else 'timeout'} [{sub}]")
+            time.sleep(1)
             continue
         try:
-            for p in r.json().get("data", {}).get("children", []):
-                if p.get("data", {}).get("created_utc", 0) >= cutoff_ts:
-                    total += 1
-        except:
-            pass
-        time.sleep(0.6)
+            posts  = r.json().get("data") or []
+            total += len(posts)
+        except Exception as e:
+            log.warning(f"  Arctic Shift parse error [{sub}]: {e}")
+        time.sleep(0.8)  # polite delay
+
     return total
 
+
 def fetch_reddit_all_signals(signals: dict, days: int = 1) -> dict:
-    log.info(f"\nReddit ({days}-day window)...")
-    raw = {}
+    """
+    Fetch post counts for all signals over the last `days` days.
+    Returns { sig_key: normalised_score_0_to_100 }.
+    """
+    log.info(f"\nReddit/Arctic Shift ({days}-day window)...")
+    now    = datetime.now(timezone.utc)
+    after  = now - timedelta(days=days)
+    raw    = {}
+
     for sig_key, cfg in signals.items():
         subs  = cfg.get("reddit_subs", ["all"])
         query = cfg.get("reddit_query") or cfg.get("news", sig_key)
-        count = fetch_reddit_signal(subs, query, days=days)
+        count = fetch_arctic_signal(subs, query, after, now)
         raw[sig_key] = count
         log.info(f"  {'OK' if count else '--'} {sig_key}: {count} posts")
-        time.sleep(0.3)
+
     max_val = max(raw.values(), default=1) or 1
     return {k: round(v / max_val * 100, 1) for k, v in raw.items()}
 
+
 def fetch_reddit_range(signals: dict, days: int = 30) -> dict:
-    log.info(f"\nReddit backfill ({days} days)...")
-    now, result = datetime.now(timezone.utc), {sig: {} for sig in signals}
+    """
+    Backfill: returns { sig_key: { 'YYYYMMDD': normalised_score } }
+    Queries each day individually using Arctic Shift's date-range support.
+    This gives true per-day counts back to Jan 1 (or any date) with no approximation.
+    """
+    log.info(f"\nReddit/Arctic Shift backfill ({days} days)...")
+    now    = datetime.now(timezone.utc)
+    result = {sig: {} for sig in signals}
+
     for sig_key, cfg in signals.items():
         subs  = cfg.get("reddit_subs", ["all"])
         query = cfg.get("reddit_query") or cfg.get("news", sig_key)
-        for w in range((days // 7) + 1):
-            w_days = min(7, days - w * 7)
-            if w_days <= 0:
-                break
-            count   = fetch_reddit_signal(subs, query, days=w_days + w * 7)
-            per_day = round(count / max(w_days, 1))
-            for d in range(w_days):
-                day = now - timedelta(days=w * 7 + d + 1)
-                result[sig_key][day.strftime("%Y%m%d")] = per_day
-            time.sleep(0.5)
+
+        for d in range(days, 0, -1):
+            day_start = (now - timedelta(days=d)).replace(
+                hour=0, minute=0, second=0, microsecond=0)
+            day_end   = day_start + timedelta(days=1)
+            day_key   = day_start.strftime("%Y%m%d")
+
+            count = fetch_arctic_signal(subs, query, day_start, day_end)
+            result[sig_key][day_key] = count
+
+    # Normalise 0-100 across all signals and days
     all_vals = [v for sd in result.values() for v in sd.values()]
     max_val  = max(all_vals, default=1) or 1
     for sig_key in result:
-        result[sig_key] = {k: round(v / max_val * 100, 1) for k, v in result[sig_key].items()}
+        result[sig_key] = {
+            k: round(v / max_val * 100, 1)
+            for k, v in result[sig_key].items()
+        }
+    log.info(f"  Reddit backfill done — {days} days × {len(signals)} signals")
     return result
 
 
-# ── Source 2: Google Trends RSS (unchanged) ───────────────────────────────────
+# ── Source 2: Google Trends RSS ──────────────────────────────────────────────
+#
+# Pulls actual trending topics with full metadata: title, approx_traffic,
+# related news headlines + URLs per topic. Topics are classified into
+# sport / crisis / economic / entertainment / tech / politics categories
+# using keyword matching across both the topic title and its related headlines.
+# This replaces the old % summary with a structured list usable for deeper analysis.
+
+HT_NS = "https://trends.google.com/trending/rss"  # ht: namespace in RSS
+
+def classify_topic(title: str, news_titles: list) -> list:
+    """
+    Returns a list of matching category labels for a topic.
+    Checks topic title + all related news headlines.
+    """
+    combined = (title + " " + " ".join(news_titles)).lower()
+    cats = []
+    if any(k in combined for k in CRISIS_KW):        cats.append("crisis")
+    if any(k in combined for k in SPORT_KW):         cats.append("sport")
+    if any(k in combined for k in ECONOMIC_KW):      cats.append("economic")
+    if any(k in combined for k in ENTERTAINMENT_KW): cats.append("entertainment")
+    if any(k in combined for k in TECH_KW):          cats.append("tech")
+    if any(k in combined for k in POLITICS_KW):      cats.append("politics")
+    return cats if cats else ["other"]
+
 
 def fetch_rss(geo: str) -> dict:
+    """
+    Fetch Google Trends RSS for a geo code.
+    Returns a dict with:
+      topics: [ { title, traffic, categories, news: [{title, url, source}] } ]
+      category_counts: { crisis: N, sport: N, ... }
+      crisis_pct, sport_pct: top-level percentages (kept for backwards compat)
+    """
     r = safe_get(f"https://trends.google.com/trending/rss?geo={geo}",
                  headers={"User-Agent": "Mozilla/5.0"})
     if not r or r.status_code != 200:
         return {}
     try:
-        root   = ET.fromstring(r.text)
-        topics = [i.find("title").text or ""
-                  for i in root.findall(".//item") if i.find("title") is not None]
-        total  = len(topics) or 1
+        root  = ET.fromstring(r.text)
+        items = root.findall(".//item")
+        topics = []
+
+        for item in items:
+            title_el   = item.find("title")
+            traffic_el = item.find(f"{{{HT_NS}}}approx_traffic")
+            title      = title_el.text.strip() if title_el is not None and title_el.text else ""
+            traffic    = traffic_el.text.strip() if traffic_el is not None and traffic_el.text else "0+"
+
+            # Extract all related news items for this topic
+            news_items = []
+            for ni in item.findall(f"{{{HT_NS}}}news_item"):
+                ni_title  = ni.find(f"{{{HT_NS}}}news_item_title")
+                ni_url    = ni.find(f"{{{HT_NS}}}news_item_url")
+                ni_source = ni.find(f"{{{HT_NS}}}news_item_source")
+                if ni_title is not None and ni_title.text:
+                    news_items.append({
+                        "title":  ni_title.text.strip(),
+                        "url":    ni_url.text.strip() if ni_url is not None and ni_url.text else "",
+                        "source": ni_source.text.strip() if ni_source is not None and ni_source.text else "",
+                    })
+
+            news_titles = [n["title"] for n in news_items]
+            cats        = classify_topic(title, news_titles)
+
+            topics.append({
+                "title":      title,
+                "traffic":    traffic,
+                "categories": cats,
+                "news":       news_items[:3],  # top 3 related articles
+            })
+
+        # Category counts across all topics
+        cat_counts: dict = {}
+        for t in topics:
+            for c in t["categories"]:
+                cat_counts[c] = cat_counts.get(c, 0) + 1
+
+        total = len(topics) or 1
         return {
-            "sport_entertainment_pct": round(sum(1 for t in topics if any(k in t.lower() for k in SPORT_KW)) / total * 100),
-            "crisis_pct":              round(sum(1 for t in topics if any(k in t.lower() for k in CRISIS_KW)) / total * 100),
-            "top_topics":              topics[:10],
+            "topics":          topics,
+            "category_counts": cat_counts,
+            # Backwards-compat percentages
+            "crisis_pct":              round(cat_counts.get("crisis", 0) / total * 100),
+            "sport_entertainment_pct": round((cat_counts.get("sport", 0) + cat_counts.get("entertainment", 0)) / total * 100),
+            # Legacy list for summaries
+            "top_topics": [t["title"] for t in topics[:10]],
         }
     except Exception as e:
-        log.warning(f"  RSS parse error [{geo}]: {e}")
+        log.warning(f"  Trends RSS parse error [{geo}]: {e}")
         return {}
 
 
 # ── Source 3: GDELT v2 DOC API ────────────────────────────────────────────────
 #
-# Replaces NewsAPI. No key required. 5-second minimum between requests.
-# Uses artlist mode to count matching articles per signal × market in 24h.
-# Tone score (-100 to +100) is averaged across articles as a bonus signal.
+# No key required. Rate limit: 1 request per 5 seconds per IP.
+# artlist mode: counts articles + extracts tone per signal × market.
+# timelinevol mode: hourly volume timeline for backfill (aggregated to daily).
+#
+# Retry logic: 429 and empty responses are retried up to 3× with backoff.
+# The 5s sleep covers the rate limit; retries add extra spacing.
+
+GDELT_RETRY   = 3
+GDELT_SLEEP   = 6.0   # slightly over 5s to account for response time
+GDELT_BACKOFF = 10.0  # extra sleep on 429
+
+
+def _gdelt_get(params: dict) -> requests.Response | None:
+    """
+    Single GDELT request with rate-limit sleep, retry on 429/empty, and
+    content validation before returning. Returns None on all failures.
+    """
+    for attempt in range(GDELT_RETRY):
+        time.sleep(GDELT_SLEEP)
+        r = safe_get(GDELT_BASE, params=params)
+        if r is None:
+            log.warning(f"  GDELT attempt {attempt+1} timeout")
+            time.sleep(GDELT_BACKOFF)
+            continue
+        if r.status_code == 429:
+            log.warning(f"  GDELT 429 rate-limit — waiting {GDELT_BACKOFF}s")
+            time.sleep(GDELT_BACKOFF)
+            continue
+        if r.status_code != 200:
+            log.warning(f"  GDELT {r.status_code}")
+            continue
+        # Guard against non-JSON rate-limit text ("Please limit requests...")
+        if not r.text.strip().startswith("{"):
+            log.warning(f"  GDELT non-JSON response (attempt {attempt+1}): {r.text[:60]}")
+            time.sleep(GDELT_BACKOFF)
+            continue
+        return r
+    return None
+
 
 def fetch_gdelt_signal(signal_query: str, market: str, timespan: str = "24h") -> dict:
     """
     Returns { count: int, avg_tone: float } for a signal+market pair.
-    signal_query: the signal's gdelt_query field (e.g. "inflation prices cost living")
-    market: one of UAE / KSA / Kuwait / Qatar
     """
-    geo   = MARKET_GDELT_GEO.get(market, market)
-    query = f"({signal_query}) ({geo})"
+    geo    = MARKET_GDELT_GEO.get(market, market)
+    query  = f"({signal_query}) ({geo})"
     params = {
         "query":      query,
         "mode":       "artlist",
@@ -260,16 +445,12 @@ def fetch_gdelt_signal(signal_query: str, market: str, timespan: str = "24h") ->
         "format":     "json",
         "sourcelang": "english",
     }
-    time.sleep(5.5)  # GDELT requires ≥5s between requests
-    r = safe_get(GDELT_BASE, params=params)
-    if not r or r.status_code != 200:
-        log.warning(f"  GDELT {r.status_code if r else 'timeout'} [{market}/{signal_query[:20]}]")
+    r = _gdelt_get(params)
+    if not r:
         return {"count": 0, "avg_tone": 0.0}
     try:
-        articles = r.json().get("articles", [])
-        if not articles:
-            return {"count": 0, "avg_tone": 0.0}
-        tones = [float(a.get("tone", 0)) for a in articles if a.get("tone") is not None]
+        articles = r.json().get("articles") or []
+        tones    = [float(a["tone"]) for a in articles if a.get("tone") not in (None, "")]
         return {
             "count":    len(articles),
             "avg_tone": round(sum(tones) / len(tones), 2) if tones else 0.0,
@@ -281,11 +462,8 @@ def fetch_gdelt_signal(signal_query: str, market: str, timespan: str = "24h") ->
 
 def fetch_gdelt_all(signals: dict, timespan: str = "24h") -> dict:
     """
-    Returns {
-      market: { sig_key: { count, avg_tone } }
-    }
-    GDELT's 5s rate limit means this takes ~signals × markets × 5.5s ≈ 12 min for full run.
-    We batch by market to allow partial success.
+    Returns { market: { sig_key: { count, avg_tone } } }
+    Runtime: ~signals × markets × 6s. With 12 markets × 28 signals ≈ ~34 min.
     """
     log.info(f"\nGDELT ({timespan} window)...")
     result = {m: {} for m in MARKETS.values()}
@@ -298,20 +476,21 @@ def fetch_gdelt_all(signals: dict, timespan: str = "24h") -> dict:
             result[market_name][sig_key] = data
             if data["count"]:
                 ok = True
-                log.info(f"  OK {market_name}/{sig_key}: {data['count']} articles, tone={data['avg_tone']}")
+                log.info(f"  OK {market_name}/{sig_key}: {data['count']} articles tone={data['avg_tone']}")
             else:
-                log.info(f"  -- {market_name}/{sig_key}: 0 articles")
+                log.info(f"  -- {market_name}/{sig_key}")
 
     return result if ok else {}
 
 
 def fetch_gdelt_backfill(signals: dict, days: int = 30) -> dict:
     """
-    Backfill using GDELT's timelinevol mode — returns daily article volume per signal per market.
+    Uses timelinevol mode to get hourly volume per signal × market, aggregated to daily.
     Returns { market: { sig_key: { 'YYYYMMDD': count } } }
+    Date format from GDELT timelinevol: "20260320T140000Z" (ISO compact, hourly).
     """
     log.info(f"\nGDELT backfill ({days} days)...")
-    result = {m: {s: {} for s in signals} for m in MARKETS.values()}
+    result   = {m: {s: {} for s in signals} for m in MARKETS.values()}
     timespan = f"{days}d"
 
     for market_name in MARKETS.values():
@@ -324,25 +503,28 @@ def fetch_gdelt_backfill(signals: dict, days: int = 30) -> dict:
                 "timespan": timespan,
                 "format":   "json",
             }
-            time.sleep(5.5)
-            r = safe_get(GDELT_BASE, params=params)
-            if not r or r.status_code != 200:
+            r = _gdelt_get(params)
+            if not r:
                 continue
             try:
                 tl = r.json().get("timeline", [])
                 if not tl or not tl[0].get("data"):
                     continue
+                # Aggregate hourly values to daily sums
+                daily: dict = {}
                 for entry in tl[0]["data"]:
-                    # date format: "2026 Mar 20"
                     try:
-                        dt      = datetime.strptime(entry["date"], "%Y %b %d")
+                        # Format: "20260320T140000Z"
+                        dt      = datetime.strptime(entry["date"], "%Y%m%dT%H%M%SZ")
                         day_key = dt.strftime("%Y%m%d")
-                        result[market_name][sig_key][day_key] = round(entry.get("value", 0))
+                        daily[day_key] = daily.get(day_key, 0) + entry.get("value", 0)
                     except:
                         pass
-                log.info(f"  OK {market_name}/{sig_key}: {len(result[market_name][sig_key])} days")
+                result[market_name][sig_key] = {k: round(v) for k, v in daily.items()}
+                if daily:
+                    log.info(f"  OK {market_name}/{sig_key}: {len(daily)} days")
             except Exception as e:
-                log.warning(f"  GDELT backfill error {market_name}/{sig_key}: {e}")
+                log.warning(f"  GDELT backfill {market_name}/{sig_key}: {e}")
 
     return result
 
@@ -772,13 +954,12 @@ def collect():
         "conflict":       {},
         "sources_live":   [],
         "sources_failed": [],
-        "ramadan_active": config.get("ramadan_active", False),
+
     }
     for cat_key, cat in config["categories"].items():
         result["categories"][cat_key] = {
             "label": cat["label"], "icon": cat["icon"], "color": cat["color"],
             "hypothesis": cat.get("hypothesis",""),
-            "ramadan_only": cat.get("ramadan_only", False),
             "signals": list(cat["signals"].keys()),
         }
 
@@ -802,7 +983,9 @@ def collect():
         trends = fetch_rss(geo)
         if trends:
             rss_data[market_name] = trends
-            log.info(f"  OK {market_name}: sport={trends['sport_entertainment_pct']}% crisis={trends['crisis_pct']}%")
+            cats = trends.get("category_counts", {})
+            log.info(f"  OK {market_name}: {len(trends.get('topics',[]))} topics | " +
+                     " ".join(f"{k}={v}" for k,v in sorted(cats.items(), key=lambda x:-x[1])))
         else:
             log.warning(f"  -- {market_name}")
     if rss_data:
@@ -884,11 +1067,9 @@ def generate_market_summary(market: str, data: dict, config: dict) -> str:
     reddit_raw = data.get("global", {}).get("reddit", {})
     rss        = data.get("global", {}).get("rss_trends", {}).get(market, {})
     conflict   = data.get("conflict", {}).get(market, {})
-    is_ramadan = bool(data.get("ramadan_active") and config.get("ramadan_active"))
-
     all_signals = {}
     for ck, cat in categories.items():
-        if cat.get("ramadan_only") and not is_ramadan:
+        if cat.get("ramadan_only"):
             continue
         for sk in cat.get("signals", {}).keys():
             gdelt  = gdelt_raw.get(market, {}).get(sk, {}).get("count", 0)
@@ -924,7 +1105,7 @@ def generate_market_summary(market: str, data: dict, config: dict) -> str:
     p1    = (f"Consumer attention in {market} is concentrated around **{sl(top2[0][0])}** and "
              f"**{sl(top2[1][0])}**, which together dominate the signal landscape. "
              f"The overall mood is {mood}, with {top_cat_label} emerging as the strongest category."
-             + (" Ramadan is amplifying late-night activity and iftar-related consumption." if is_ramadan else "")
+
              + conflict_note)
 
     drivers = []
@@ -932,7 +1113,7 @@ def generate_market_summary(market: str, data: dict, config: dict) -> str:
     if sport_pct  >= 20: drivers.append(f"strong sports and entertainment engagement ({sport_pct}%)")
     if conflict.get("intensity",0) > 30:
         drivers.append(f"active conflict in the region ({conflict.get('event_count',0)} ACLED-tracked events)")
-    if is_ramadan:        drivers.append("the Ramadan consumption cycle shifting peak hours to evenings")
+
     if trend_str:         drivers.append(f"trending conversations around {trend_str}")
     if not drivers:       drivers.append("a mix of seasonal and regional factors")
     p2 = (f"This pattern is being driven by {'; '.join(drivers)}. "
@@ -942,9 +1123,7 @@ def generate_market_summary(market: str, data: dict, config: dict) -> str:
     if crisis_pct >= 20 or conflict.get("intensity",0) > 40:
         action = (f"avoid hard promotional messaging this week — contextual and empathy-led "
                   f"creatives will perform better alongside {sl(top2[0][0])} content environments")
-    elif is_ramadan:
-        action = (f"activate Ramadan prime time (9-11pm) — iftar-moment sponsorships and "
-                  f"evening digital placements capture peak {sl(top2[1][0])} engagement")
+
     else:
         action = (f"lean into {top_cat_label.lower()} environments — the {sl(top2[0][0])} signal "
                   f"suggests audiences are primed for discovery content over hard sell this week")
