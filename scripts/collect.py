@@ -127,10 +127,11 @@ POLITICS_KW     = ["election","president","minister","parliament","government","
 
 BACKFILL_DAYS = 30
 
-BASE_PATH    = Path(__file__).parent.parent
-OUTPUT_PATH  = BASE_PATH / "public" / "pulse_data.json"
-HISTORY_PATH = BASE_PATH / "public" / "pulse_history.json"
-CONFIG_PATH  = BASE_PATH / "public" / "signals_config.json"
+BASE_PATH        = Path(__file__).parent.parent
+OUTPUT_PATH      = BASE_PATH / "public" / "pulse_data.json"
+HISTORY_PATH     = BASE_PATH / "public" / "pulse_history.json"
+CONFIG_PATH      = BASE_PATH / "public" / "signals_config.json"
+CHECKPOINT_PATH  = BASE_PATH / "public" / "backfill_checkpoint.json"
 
 GDELT_BASE     = "https://api.gdeltproject.org/api/v2/doc/doc"
 GNEWS_BASE     = "https://news.google.com/rss/search"
@@ -187,6 +188,32 @@ def load_history() -> list:
 def save_history(h: list):
     HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
     HISTORY_PATH.write_text(json.dumps(h, indent=2))
+
+
+# ── Checkpoint helpers ────────────────────────────────────────────────────────
+# Checkpoints save intermediate backfill results to disk after each source
+# completes. If the run dies, the next run resumes from the checkpoint instead
+# of starting over.
+
+def load_checkpoint() -> dict:
+    try:
+        if CHECKPOINT_PATH.exists():
+            d = json.loads(CHECKPOINT_PATH.read_text())
+            log.info(f"  Resuming from checkpoint (completed: {d.get('completed', [])})")
+            return d
+    except:
+        pass
+    return {"completed": [], "reddit": {}, "gdelt": {}, "acled": {}}
+
+def save_checkpoint(cp: dict):
+    CHECKPOINT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CHECKPOINT_PATH.write_text(json.dumps(cp))
+
+def clear_checkpoint():
+    try:
+        CHECKPOINT_PATH.unlink(missing_ok=True)
+    except:
+        pass
 
 
 # ── Source 1: Reddit via Arctic Shift ────────────────────────────────────────
@@ -452,8 +479,11 @@ def fetch_gdelt_signal(signal_query: str, market: str, timespan: str = "24h") ->
     """
     Returns { count: int, avg_tone: float } for a signal+market pair.
     """
-    geo    = MARKET_GDELT_GEO.get(market, market)
-    query  = f"({signal_query}) ({geo})"
+    geo   = MARKET_GDELT_GEO.get(market, market)
+    # GDELT only allows parens around multi-term OR groups, not single words
+    sig_part = f"({signal_query})" if " " in signal_query else signal_query
+    geo_part = f"({geo})"          if " " in geo           else geo
+    query    = f"{sig_part} {geo_part}"
     params = {
         "query":      query,
         "mode":       "artlist",
@@ -510,12 +540,30 @@ def fetch_gdelt_backfill(signals: dict, days: int = 30) -> dict:
     result   = {m: {s: {} for s in signals} for m in MARKETS.values()}
     timespan = f"{days}d"
 
+    # Support resuming a partial GDELT backfill
+    gdelt_partial_path = CHECKPOINT_PATH.parent / "backfill_gdelt_partial.json"
+    try:
+        if gdelt_partial_path.exists():
+            saved = json.loads(gdelt_partial_path.read_text())
+            for m, sigs in saved.items():
+                if m in result:
+                    result[m].update(sigs)
+            done_pairs = sum(len(v) for v in saved.values())
+            log.info(f"  Resuming GDELT backfill ({done_pairs} signal/market pairs already done)")
+    except:
+        pass
+
     for market_name in MARKETS.values():
         for sig_key, cfg in signals.items():
-            query  = cfg.get("gdelt_query") or cfg.get("news", sig_key)
-            geo    = MARKET_GDELT_GEO.get(market_name, market_name)
-            params = {
-                "query":    f"({query}) ({geo})",
+            if result[market_name].get(sig_key):
+                continue  # already loaded from partial checkpoint
+
+            query    = cfg.get("gdelt_query") or cfg.get("news", sig_key)
+            geo      = MARKET_GDELT_GEO.get(market_name, market_name)
+            sig_part = f"({query})" if " " in query else query
+            geo_part = f"({geo})"   if " " in geo   else geo
+            params   = {
+                "query":    f"{sig_part} {geo_part}",
                 "mode":     "timelinevol",
                 "timespan": timespan,
                 "format":   "json",
@@ -527,11 +575,9 @@ def fetch_gdelt_backfill(signals: dict, days: int = 30) -> dict:
                 tl = r.json().get("timeline", [])
                 if not tl or not tl[0].get("data"):
                     continue
-                # Aggregate hourly values to daily sums
                 daily: dict = {}
                 for entry in tl[0]["data"]:
                     try:
-                        # Format: "20260320T140000Z"
                         dt      = datetime.strptime(entry["date"], "%Y%m%dT%H%M%SZ")
                         day_key = dt.strftime("%Y%m%d")
                         daily[day_key] = daily.get(day_key, 0) + entry.get("value", 0)
@@ -540,8 +586,14 @@ def fetch_gdelt_backfill(signals: dict, days: int = 30) -> dict:
                 result[market_name][sig_key] = {k: round(v) for k, v in daily.items()}
                 if daily:
                     log.info(f"  OK {market_name}/{sig_key}: {len(daily)} days")
+                    gdelt_partial_path.write_text(json.dumps(result))
             except Exception as e:
                 log.warning(f"  GDELT backfill {market_name}/{sig_key}: {e}")
+
+    try:
+        gdelt_partial_path.unlink(missing_ok=True)
+    except:
+        pass
 
     return result
 
@@ -806,21 +858,47 @@ def backfill(signals: dict, acled_email: str, acled_password: str) -> list:
     now   = datetime.now(timezone.utc)
     start = now - timedelta(days=BACKFILL_DAYS)
 
+    # Load checkpoint — resume from where a previous interrupted run left off
+    cp = load_checkpoint()
+
     # Reddit: weekly buckets
-    reddit_range = fetch_reddit_range(signals, days=BACKFILL_DAYS)
+    if "reddit" in cp["completed"]:
+        log.info("  Reddit: loaded from checkpoint")
+        reddit_range = cp["reddit"]
+    else:
+        reddit_range = fetch_reddit_range(signals, days=BACKFILL_DAYS)
+        cp["reddit"] = reddit_range
+        cp["completed"].append("reddit")
+        save_checkpoint(cp)
+        log.info("  Reddit: checkpoint saved")
 
-    # GDELT: daily timeline per signal per market (takes time due to 5s rate limit)
-    gdelt_range = fetch_gdelt_backfill(signals, days=BACKFILL_DAYS)
+    # GDELT: daily timeline per signal per market
+    if "gdelt" in cp["completed"]:
+        log.info("  GDELT: loaded from checkpoint")
+        gdelt_range = cp["gdelt"]
+    else:
+        gdelt_range = fetch_gdelt_backfill(signals, days=BACKFILL_DAYS)
+        cp["gdelt"] = gdelt_range
+        cp["completed"].append("gdelt")
+        save_checkpoint(cp)
+        log.info("  GDELT: checkpoint saved")
 
-    # ACLED: single 30-day pull per market (no daily bucketing needed — use flat per-day)
+    # ACLED: single 30-day pull per market
     acled_30d = {}
-    if acled_email and acled_password:
+    if "acled" in cp["completed"]:
+        log.info("  ACLED: loaded from checkpoint")
+        acled_30d = cp["acled"]
+    elif acled_email and acled_password:
         acled_token = get_acled_token(acled_email, acled_password)
         if acled_token:
             for market_name in MARKETS.values():
                 data = fetch_acled_market(market_name, acled_token, days=BACKFILL_DAYS)
                 if data:
                     acled_30d[market_name] = data
+            cp["acled"] = acled_30d
+            cp["completed"].append("acled")
+            save_checkpoint(cp)
+            log.info("  ACLED: checkpoint saved")
 
     # Normalise GDELT counts across all signals/markets/days
     all_gdelt_counts = [
@@ -957,6 +1035,7 @@ def collect():
         history    = [r for r in history if r["date"] not in bf_by_date]
         history    = sorted(history + list(bf_by_date.values()), key=lambda r: r["date"])
         save_history(history)
+        clear_checkpoint()  # backfill complete — remove checkpoint file
         log.info(f"History: {len(history)} records after backfill")
     else:
         log.info(f"History complete — {len(history)} records")
