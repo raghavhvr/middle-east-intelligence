@@ -300,8 +300,8 @@ def fetch_reddit_range(signals: dict, days: int = 30) -> dict:
 
     Strategy: fetch one 7-day window per signal per subreddit (4 windows = 28 days),
     match keywords locally, then distribute the weekly count evenly across the 7 days.
-    This keeps the call count to 28 signals × 4 weeks × 3 subs = 336 calls (~5 min)
-    instead of 28 × 30 × 3 = 2520 calls (~20 hours).
+    This keeps the call count to 28 signals x 4 weeks x 3 subs = 336 calls (~5 min)
+    instead of 28 x 30 x 3 = 2520 calls (~20 hours).
     """
     log.info(f"\nReddit/Arctic Shift backfill ({days} days)...")
     now    = datetime.now(timezone.utc)
@@ -336,7 +336,7 @@ def fetch_reddit_range(signals: dict, days: int = 30) -> dict:
             k: round(v / max_val * 100, 1)
             for k, v in result[sig_key].items()
         }
-    log.info(f"  Reddit backfill done — {days} days × {len(signals)} signals")
+    log.info(f"  Reddit backfill done — {days} days x {len(signals)} signals")
     return result
 
 
@@ -436,15 +436,20 @@ def fetch_rss(geo: str) -> dict:
 # ── Source 3: GDELT v2 DOC API ────────────────────────────────────────────────
 #
 # No key required. Rate limit: 1 request per 5 seconds per IP.
-# artlist mode: counts articles + extracts tone per signal × market.
+# artlist mode: counts articles + extracts tone per signal x market.
 # timelinevol mode: hourly volume timeline for backfill (aggregated to daily).
 #
-# Retry logic: 429 and empty responses are retried up to 3× with backoff.
+# Retry logic: 429 and empty responses are retried up to 3x with backoff.
 # The 5s sleep covers the rate limit; retries add extra spacing.
 
 GDELT_RETRY   = 4
-GDELT_SLEEP   = 6.5    # just over 5s rate limit, allows for response time
-GDELT_BACKOFF = 15.0   # extra sleep on 429 or timeout
+GDELT_SLEEP   = 7.0    # comfortably over 5s rate limit
+GDELT_BACKOFF = 20.0   # extra sleep on 429 or timeout
+GDELT_ILLEGAL = str.maketrans({"-": " ", "/": " ", chr(34): "", "(": "", ")": "", "'": ""})
+
+def gdelt_clean(query: str) -> str:
+    """Strip illegal characters and normalise whitespace for GDELT queries."""
+    return " ".join(query.translate(GDELT_ILLEGAL).split())
 
 
 def _gdelt_get(params: dict) -> requests.Response | None:
@@ -483,8 +488,8 @@ def fetch_gdelt_signal(signal_query: str, market: str, timespan: str = "24h") ->
     # GDELT only allows parens around multi-term OR groups, not single words
     # GDELT only allows parens around OR groups — plain space = AND.
     # Cap keywords to avoid query-too-long rejections.
-    sig_terms = " ".join(signal_query.split()[:5])
-    geo_terms = " ".join(geo.split()[:3])
+    sig_terms = " ".join(gdelt_clean(signal_query).split()[:5])
+    geo_terms = " ".join(gdelt_clean(geo).split()[:3])
     query     = f"{sig_terms} {geo_terms}"
     params = {
         "query":      query,
@@ -512,7 +517,7 @@ def fetch_gdelt_signal(signal_query: str, market: str, timespan: str = "24h") ->
 def fetch_gdelt_all(signals: dict, timespan: str = "24h") -> dict:
     """
     Returns { market: { sig_key: { count, avg_tone } } }
-    Runtime: ~signals × markets × 6s. With 12 markets × 28 signals ≈ ~34 min.
+    Runtime: ~signals x markets x 6s. With 12 markets x 28 signals ≈ ~34 min.
     """
     log.info(f"\nGDELT ({timespan} window)...")
     result = {m: {} for m in MARKETS.values()}
@@ -534,7 +539,7 @@ def fetch_gdelt_all(signals: dict, timespan: str = "24h") -> dict:
 
 def fetch_gdelt_backfill(signals: dict, days: int = 30) -> dict:
     """
-    Uses timelinevol mode to get hourly volume per signal × market, aggregated to daily.
+    Uses timelinevol mode to get hourly volume per signal x market, aggregated to daily.
     Returns { market: { sig_key: { 'YYYYMMDD': count } } }
     Date format from GDELT timelinevol: "20260320T140000Z" (ISO compact, hourly).
     """
@@ -562,8 +567,8 @@ def fetch_gdelt_backfill(signals: dict, days: int = 30) -> dict:
 
             query     = cfg.get("gdelt_query") or cfg.get("news", sig_key)
             geo       = MARKET_GDELT_GEO.get(market_name, market_name)
-            sig_terms = " ".join(query.split()[:5])
-            geo_terms = " ".join(geo.split()[:3])
+            sig_terms = " ".join(gdelt_clean(query).split()[:5])
+            geo_terms = " ".join(gdelt_clean(geo).split()[:3])
             params    = {
                 "query":    f"{sig_terms} {geo_terms}",
                 "mode":     "timelinevol",
@@ -604,7 +609,7 @@ def fetch_gdelt_backfill(signals: dict, days: int = 30) -> dict:
 #
 # Replaces Guardian. Uses news.google.com/rss/search to proxy MENA news outlets
 # that would otherwise block Vercel/GitHub Actions IPs.
-# Returns article count per signal × market, also captures article titles
+# Returns article count per signal x market, also captures article titles
 # for summary generation.
 
 def fetch_gnews_signal(signal_query: str, market: str, days: int = 7) -> dict:
@@ -618,7 +623,7 @@ def fetch_gnews_signal(signal_query: str, market: str, days: int = 7) -> dict:
     total = 0
     titles = []
 
-    # 1. Broad market × signal query across all Google News
+    # 1. Broad market x signal query across all Google News
     broad_query = f"{signal_query} {geo} {when}"
     params = {"q": broad_query, "hl": "en-US", "gl": "US", "ceid": "US:en"}
     r = safe_get(GNEWS_BASE, params=params)
