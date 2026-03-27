@@ -13,7 +13,10 @@ const GH_REPO     = "crisis-pulse";
 const GH_PATH     = "public/signals_config.json";
 
 const MARKET_FLAGS: Record<string,string> = {
-  UAE:"🇦🇪", KSA:"🇸🇦", Kuwait:"🇰🇼", Qatar:"🇶🇦"
+  UAE:"🇦🇪", "Saudi Arabia":"🇸🇦", Kuwait:"🇰🇼", Qatar:"🇶🇦",
+  Bahrain:"🇧🇭", Oman:"🇴🇲", Lebanon:"🇱🇧", Jordan:"🇯🇴",
+  Iraq:"🇮🇶", Syria:"🇸🇾", Egypt:"🇪🇬", Yemen:"🇾🇪",
+  Israel:"🇮🇱"
 };
 
 function fmt(n:number){ return n>=1000?`${(n/1000).toFixed(1)}K`:String(n); }
@@ -31,18 +34,6 @@ const CustomTooltip = ({active,payload,label}:any) => {
     </div>
   );
 };
-
-// ── Ramadan banner ────────────────────────────────────────────────────────────
-function RamadanBanner({endDate}:{endDate:string}){
-  const days = Math.max(0,Math.ceil((new Date(endDate).getTime()-Date.now())/(86400000)));
-  return (
-    <div className="ramadan-banner">
-      <span className="ramadan-moon">☽</span>
-      <span className="ramadan-text">Ramadan Mode Active</span>
-      <span className="ramadan-sub">Signals adjusted for Ramadan consumption patterns · {days} days remaining</span>
-    </div>
-  );
-}
 
 // ── Category score card ───────────────────────────────────────────────────────
 function CategoryCard({
@@ -158,7 +149,7 @@ function SignalRow({sigKey,sig,markets,activeMarket,dates,newsapi,guardian,newsa
 
   // Use news volume as the primary market-specific index (normalised to 0-100)
   // Compute max across all markets for this signal to normalise
-  const allMarkets = ["UAE","KSA","Kuwait","Qatar"];
+  const allMarkets = Object.keys(MARKET_FLAGS);
   const allVols = allMarkets.map(m=>{
     const na = newsapiAllMarkets?.[m]?.[sigKey]||0;
     return na + guardianV; // guardian is global so same, but na differs
@@ -245,7 +236,6 @@ function SettingsPanel({config,onClose,onSave}:{config:any,onClose:()=>void,onSa
             <div key={catKey} className="sp-cat">
               <div className="sp-cat-header" style={{borderLeftColor:cat.color}}>
                 {cat.icon} {cat.label}
-                {cat.ramadan_only&&<span className="sp-ramadan-badge">☽ Ramadan only</span>}
               </div>
               {Object.entries(cat.signals).map(([sigKey,sig]:any)=>(
                 <div key={sigKey} className="sp-sig-row">
@@ -385,7 +375,6 @@ export default function App(){
     travel:"behav", mental_health:"wellness", meditation:"wellness",
     fitness:"wellness", sleep:"wellness", therapy:"wellness",
     charity:"social", volunteering:"social", community:"social",
-    iftar_delivery:"ramadan", late_night:"ramadan", eid_shopping:"ramadan", suhoor:"ramadan",
   };
   // Build synthetic per-market newsapi from flat + RSS weights
   const buildMarketNewsapi = (market: string, flat: Record<string,number>) => {
@@ -395,7 +384,7 @@ export default function App(){
     const result: Record<string,number> = {};
     Object.entries(flat).forEach(([sig, vol]) => {
       const cat = SIG_CATEGORY[sig]||"econ";
-      const w = cat==="sport" ? sportW : cat==="crisis" ? crisisW : cat==="ramadan" ? sportW*0.8 : 1.0;
+      const w = cat==="sport" ? sportW : cat==="crisis" ? crisisW : 1.0;
       result[sig] = Math.round((vol as number) * w);
     });
     return result;
@@ -403,7 +392,7 @@ export default function App(){
 
   // Always build per-market newsapi — real if available, synthetic from RSS otherwise
   const newsapiByMarket: Record<string,Record<string,number>> = {};
-  ["UAE","KSA","Kuwait","Qatar"].forEach(m => {
+  Object.keys(MARKET_FLAGS).forEach(m => {
     newsapiByMarket[m] = isPerMarket
       ? (newsapiRaw[m]||{})
       : buildMarketNewsapi(m, newsapiRaw);
@@ -412,8 +401,7 @@ export default function App(){
   const guardian     = data.news_volumes?.guardian||{};
   const dates        = data.dates||[];
   const sources      = data.sources_live||[];
-  const isRamadan    = data.ramadan_active&&config.ramadan_active;
-  const ramadanEnd   = config.ramadan_end||"";
+
 
   const activeCatObj  = activeCat ? categories[activeCat] : null;
   const activeSigKeys = activeCat
@@ -451,7 +439,7 @@ export default function App(){
 
   // Radar data — per-market scores using newsapi geo-filtered volumes
   // Each market's newsapi volumes are genuinely different (geo-filtered queries)
-  const RADAR_MARKETS = ["UAE","KSA","Kuwait","Qatar"];
+  const RADAR_MARKETS = Object.keys(MARKET_FLAGS).slice(0,4);
   // Pre-compute max per-signal across all markets for normalisation
   const sigMaxMap: Record<string,number> = {};
   Object.keys(flatSigs).forEach(s=>{
@@ -549,15 +537,12 @@ export default function App(){
         }
         .sp-trigger:hover{border-color:var(--lime);color:var(--lime);}
 
-        /* ── Ramadan banner ── */
-        .ramadan-banner{
+
           display:flex;align-items:center;gap:12px;padding:9px 32px;
           background:linear-gradient(90deg,rgba(252,254,103,0.07),rgba(252,254,103,0.02));
           border-bottom:1px solid rgba(252,254,103,0.12);
         }
-        .ramadan-moon{font-size:14px;}
-        .ramadan-text{font-family:var(--display);font-size:12px;font-weight:700;color:var(--yellow);letter-spacing:1px;}
-        .ramadan-sub{font-family:var(--sans);font-size:10px;font-weight:500;color:rgba(252,254,103,0.6);letter-spacing:1px;}
+
 
         /* ── Sticky market tabs ── */
         .sticky-nav{
@@ -713,7 +698,7 @@ export default function App(){
         .sp-divider{height:1px;background:var(--border);}
         .sp-cat{display:flex;flex-direction:column;gap:8px;}
         .sp-cat-header{font-family:var(--display);font-size:12px;font-weight:700;color:var(--bright);padding:8px 0 8px 12px;border-left:3px solid;display:flex;align-items:center;gap:10px;}
-        .sp-ramadan-badge{font-family:var(--sans);font-size:10px;font-weight:600;color:var(--yellow);background:rgba(245,208,32,0.1);padding:2px 8px;border-radius:2px;border:1px solid rgba(245,208,32,0.2);}
+
         .sp-sig-row{background:var(--s2);border-radius:4px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;}
         .sp-sig-name{font-size:11px;color:var(--text);}
         .sp-fields{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
@@ -762,9 +747,6 @@ export default function App(){
           <button className="sp-trigger" onClick={()=>setShowSettings(true)}>⚙ Signals</button>
         </div>
       </header>
-
-      {/* Ramadan banner */}
-      {isRamadan && <RamadanBanner endDate={ramadanEnd}/>}
 
       {/* Sticky market nav */}
       <div className="sticky-nav">

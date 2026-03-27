@@ -46,6 +46,8 @@ MARKETS = {
     "EG": "Egypt",
     # Yemen
     "YE": "Yemen",
+    # Levant (conflict zone — ACLED primary)
+    "IL": "Israel",
 }
 
 # Geo search terms for GDELT, Google News RSS, and blending
@@ -62,6 +64,7 @@ MARKET_GEO_TERMS = {
     "Syria":        "Syria OR Damascus OR Aleppo",
     "Egypt":        "Egypt OR Cairo OR Alexandria",
     "Yemen":        "Yemen OR Sanaa OR Aden OR Houthi",
+    "Israel":       "Israel OR Tel Aviv OR Jerusalem",
 }
 
 # GDELT plain OR syntax
@@ -78,6 +81,7 @@ MARKET_GDELT_GEO = {
     "Syria":        "Syria Damascus Aleppo",
     "Egypt":        "Egypt Cairo Alexandria",
     "Yemen":        "Yemen Sanaa Aden Houthi",
+    "Israel":       "Israel Tel Aviv Jerusalem",
 }
 
 # MENA news sites for Google News RSS proxy
@@ -106,6 +110,7 @@ ACLED_COUNTRIES = {
     "Syria":        ["Syria", "Iraq", "Lebanon"],
     "Egypt":        ["Egypt", "Libya", "Sudan"],
     "Yemen":        ["Yemen"],
+    "Israel":       ["Israel", "Palestine", "Lebanon"],
 }
 
 # Keyword sets for topic classification
@@ -447,6 +452,11 @@ GDELT_SLEEP   = 7.0    # comfortably over 5s rate limit
 GDELT_BACKOFF = 20.0   # extra sleep on 429 or timeout
 GDELT_ILLEGAL = str.maketrans({"-": " ", "/": " ", chr(34): "", "(": "", ")": "", "'": ""})
 
+# GDELT is only run for the 6 highest-value consumer-signal markets.
+# Syria/Yemen/Iraq/Bahrain/Oman are covered by ACLED and Trends RSS instead.
+# This keeps the daily run well under the 90-min GitHub Actions timeout.
+GDELT_MARKETS = ["UAE", "Saudi Arabia", "Egypt", "Jordan", "Lebanon", "Iraq", "Israel"]
+
 def gdelt_clean(query: str) -> str:
     """Strip illegal characters and normalise whitespace for GDELT queries."""
     return " ".join(query.translate(GDELT_ILLEGAL).split())
@@ -519,11 +529,11 @@ def fetch_gdelt_all(signals: dict, timespan: str = "24h") -> dict:
     Returns { market: { sig_key: { count, avg_tone } } }
     Runtime: ~signals x markets x 6s. With 12 markets x 28 signals ≈ ~34 min.
     """
-    log.info(f"\nGDELT ({timespan} window)...")
-    result = {m: {} for m in MARKETS.values()}
+    log.info(f"\nGDELT ({timespan} window, {len(GDELT_MARKETS)} markets)...")
+    result = {m: {} for m in MARKETS.values()}  # full dict, non-GDELT markets stay empty
     ok     = False
 
-    for market_name in MARKETS.values():
+    for market_name in GDELT_MARKETS:
         for sig_key, cfg in signals.items():
             query = cfg.get("gdelt_query") or cfg.get("news", sig_key)
             data  = fetch_gdelt_signal(query, market_name, timespan)
@@ -543,7 +553,7 @@ def fetch_gdelt_backfill(signals: dict, days: int = 30) -> dict:
     Returns { market: { sig_key: { 'YYYYMMDD': count } } }
     Date format from GDELT timelinevol: "20260320T140000Z" (ISO compact, hourly).
     """
-    log.info(f"\nGDELT backfill ({days} days)...")
+    log.info(f"\nGDELT backfill ({days} days, {len(GDELT_MARKETS)} markets)...")
     result   = {m: {s: {} for s in signals} for m in MARKETS.values()}
     timespan = f"{days}d"
 
@@ -560,7 +570,7 @@ def fetch_gdelt_backfill(signals: dict, days: int = 30) -> dict:
     except:
         pass
 
-    for market_name in MARKETS.values():
+    for market_name in GDELT_MARKETS:
         for sig_key, cfg in signals.items():
             if result[market_name].get(sig_key):
                 continue  # already loaded from partial checkpoint

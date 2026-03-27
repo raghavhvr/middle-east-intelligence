@@ -8,51 +8,51 @@
       "signals": {
         "gaming": {
           "label": "Gaming",
-          "news": "gaming esports video games",
-          "guardian": "gaming",
+          "news": "gaming esports FIFA mobile game tournament",
+          "guardian": "gaming esports",
           "reddit_subs": [
             "gaming",
-            "pcgaming",
-            "PS5"
+            "dubai",
+            "saudiarabia"
           ],
-          "reddit_query": "gaming esports video games",
-          "gdelt_query": "gaming esports videogame console"
+          "reddit_query": "gaming PlayStation FIFA eFootball mobile game",
+          "gdelt_query": "gaming esports tournament mobile PlayStation"
         },
         "streaming": {
           "label": "Streaming",
-          "news": "netflix streaming video content",
-          "guardian": "streaming",
+          "news": "streaming Shahid Netflix OSN MBC series",
+          "guardian": "streaming video on demand",
           "reddit_subs": [
             "netflix",
-            "cordcutters",
-            "television"
+            "dubai",
+            "ArabianPeninsula"
           ],
-          "reddit_query": "streaming netflix shows watching",
-          "gdelt_query": "streaming Netflix Disney Shahid OSN"
+          "reddit_query": "streaming Shahid Netflix OSN Anghami watching series",
+          "gdelt_query": "streaming Shahid Netflix OSN series subscribers"
         },
         "humour": {
           "label": "Humour & Comedy",
-          "news": "comedy memes humour viral",
-          "guardian": "comedy",
+          "news": "viral TikTok meme trending social media",
+          "guardian": "viral social media humour",
           "reddit_subs": [
             "funny",
             "memes",
-            "dankmemes"
+            "dubai"
           ],
-          "reddit_query": "funny memes comedy viral",
-          "gdelt_query": "comedy meme viral funny entertainment"
+          "reddit_query": "meme viral funny TikTok trending video",
+          "gdelt_query": "viral video TikTok social media trend humor"
         },
         "beauty": {
           "label": "Beauty & Self-care",
-          "news": "beauty skincare self-care wellness routine",
-          "guardian": "beauty",
+          "news": "beauty skincare makeup cosmetics halal luxury",
+          "guardian": "beauty skincare cosmetics",
           "reddit_subs": [
             "SkincareAddiction",
-            "beauty",
-            "MakeupAddiction"
+            "MakeupAddiction",
+            "MiddleEasternMUA"
           ],
-          "reddit_query": "skincare beauty self-care routine",
-          "gdelt_query": "skincare beauty cosmetics selfcare wellness"
+          "reddit_query": "skincare beauty makeup routine halal cosmetics",
+          "gdelt_query": "beauty cosmetics skincare luxury brand launch"
         }
       }
     },
@@ -64,75 +64,75 @@
       "signals": {
         "breaking_news": {
           "label": "Breaking News",
-          "news": "breaking news latest update",
-          "guardian": "news",
-          "reddit_subs": [
-            "worldnews",
-            "news",
-            "UpliftingNews"
-          ],
-          "reddit_query": "breaking news update alert",
-          "gdelt_query": "breaking news alert urgent update"
-        },
-        "crisis_topics": {
-          "label": "Crisis Topics",
-          "news": "crisis emergency alert",
-          "guardian": "crisis",
-          "reddit_subs": [
-            "worldnews",
-            "geopolitics",
-            "collapse"
-          ],
-          "reddit_query": "crisis emergency disaster alert",
-          "gdelt_query": "crisis emergency disaster alert warning"
-        },
-        "war_news": {
-          "label": "War & Conflict",
-          "news": "war conflict military attack",
-          "guardian": "war",
+          "news": "breaking news Middle East urgent developing",
+          "guardian": "breaking news Middle East",
           "reddit_subs": [
             "worldnews",
             "geopolitics",
             "CredibleDefense"
           ],
-          "reddit_query": "war conflict military attack",
-          "gdelt_query": "war conflict military attack battle casualties"
+          "reddit_query": "breaking news urgent developing MENA Middle East",
+          "gdelt_query": "breaking news urgent developing situation update"
+        },
+        "crisis_topics": {
+          "label": "Crisis Topics",
+          "news": "humanitarian crisis aid displacement food security",
+          "guardian": "humanitarian crisis Middle East",
+          "reddit_subs": [
+            "worldnews",
+            "geopolitics",
+            "Refugees"
+          ],
+          "reddit_query": "humanitarian crisis food shortage displaced refugees MENA",
+          "gdelt_query": "humanitarian crisis displacement food security aid"
+        },
+        "war_news": {
+          "label": "War & Conflict",
+          "news": "war Gaza Lebanon Yemen ceasefire military airstrike",
+          "guardian": "war conflict Gaza Lebanon Yemen",
+          "reddit_subs": [
+            "worldnews",
+            "IsraelPalestine",
+            "CredibleDefense"
+          ],
+          "reddit_query": "war Gaza Lebanon Yemen ceasefire airstrike offensive",
+          "gdelt_query": "airstrike ceasefire offensive casualties military operation"
         },
         "flight_searches": {
           "label": "Flight Searches",
-          "news": "flights tickets travel booking",
-          "guardian": "airlines travel",
+          "news": "flights airport evacuation travel ban airspace closure",
+          "guardian": "flights travel disruption Middle East",
           "reddit_subs": [
             "solotravel",
-            "travel",
+            "dubai",
             "flightdeals"
           ],
-          "reddit_query": "flights booking tickets travel cheap",
-          "gdelt_query": "flights airline travel booking airport"
+          "reddit_query": "flights airport travel evacuation departure visa cancel",
+          "gdelt_query": "flights airport closure evacuation travel ban airspace"
         },
         "fact_checking": {
           "label": "Fact-checking",
-          "news": "fact check misinformation rumour",
-          "guardian": "fact check",
+          "news": "misinformation disinformation fake propaganda fabricated",
+          "guardian": "misinformation disinformation fact check",
           "reddit_subs": [
+            "worldnews",
             "skeptic",
-            "Snopes",
-            "MediaSynthesis"
+            "IsraelPalestine"
           ],
-          "reddit_query": "fact check misinformation rumour debunk",
-          "gdelt_query": "misinformation disinformation rumour false claim"
+          "reddit_query": "fake news misinformation propaganda debunked fabricated",
+          "gdelt_query": "misinformation disinformation propaganda fabricated video"
         },
         "social_news": {
           "label": "Social Media News",
-          "news": "social media trending viral news",
-          "guardian": "social media",
+          "news": "social media X Twitter TikTok trending hashtag viral",
+          "guardian": "social media trending",
           "reddit_subs": [
             "OutOfTheLoop",
-            "NoStupidQuestions",
-            "worldnews"
+            "worldnews",
+            "socialmedia"
           ],
-          "reddit_query": "viral trending social media news",
-          "gdelt_query": "social media viral trending online"
+          "reddit_query": "trending hashtag viral social media X Twitter TikTok",
+          "gdelt_query": "social media trending hashtag viral platform"
         }
       }
     },
@@ -144,75 +144,75 @@
       "signals": {
         "price_comparison": {
           "label": "Price Comparison",
-          "news": "price comparison cheapest best deal",
-          "guardian": "prices consumer",
+          "news": "consumer prices retail cost comparison Noon Amazon",
+          "guardian": "consumer prices retail",
           "reddit_subs": [
-            "Frugal",
-            "deals",
-            "CouponHunter"
+            "dubai",
+            "saudiarabia",
+            "Frugal"
           ],
-          "reddit_query": "price comparison cheapest best deal",
-          "gdelt_query": "prices comparison cheapest deal consumer"
+          "reddit_query": "price expensive cheap deal Noon Amazon Carrefour LuLu",
+          "gdelt_query": "consumer prices retail cost expensive affordable"
         },
         "discounts": {
           "label": "Discounts & Coupons",
-          "news": "discount coupon sale offer promo",
-          "guardian": "discounts retail",
+          "news": "sale discount White Friday Dubai Shopping Festival offer",
+          "guardian": "retail sale discount",
           "reddit_subs": [
-            "deals",
-            "Frugal",
-            "ShoppingDeals"
+            "dubai",
+            "saudiarabia",
+            "deals"
           ],
-          "reddit_query": "discount sale coupon offer promo",
-          "gdelt_query": "discount sale offer promo coupon"
+          "reddit_query": "sale discount White Friday DSF promo offer deal",
+          "gdelt_query": "sale discount retail promotion White Friday shopping"
         },
         "budgeting": {
           "label": "Budgeting & Savings",
-          "news": "budgeting savings personal finance",
-          "guardian": "personal finance",
+          "news": "cost of living rent wages budget savings household",
+          "guardian": "cost of living personal finance",
           "reddit_subs": [
-            "personalfinance",
-            "povertyfinance",
-            "Frugal"
+            "dubai",
+            "saudiarabia",
+            "personalfinance"
           ],
-          "reddit_query": "budgeting savings personal finance",
-          "gdelt_query": "personal finance savings budget frugal"
+          "reddit_query": "cost of living rent expensive salary budget saving expat",
+          "gdelt_query": "cost living rent wages household budget savings"
         },
         "inflation": {
           "label": "Inflation",
-          "news": "inflation prices cost of living rise",
-          "guardian": "inflation",
+          "news": "inflation prices food fuel cost economy consumer",
+          "guardian": "inflation prices economy",
           "reddit_subs": [
             "Economics",
-            "personalfinance",
-            "Inflation"
+            "dubai",
+            "egypt"
           ],
-          "reddit_query": "inflation cost of living prices rising",
-          "gdelt_query": "inflation cost living prices rising economic"
+          "reddit_query": "inflation prices rising cost food fuel dollar economy",
+          "gdelt_query": "inflation prices consumer food fuel currency economy"
         },
         "panic_buying": {
           "label": "Panic Buying",
-          "news": "panic buying stockpiling shortage supply",
-          "guardian": "panic buying",
+          "news": "shortage supply stockpiling panic buying supermarket",
+          "guardian": "shortage supply panic buying",
           "reddit_subs": [
             "preppers",
-            "Costco",
-            "personalfinance"
+            "worldnews",
+            "dubai"
           ],
-          "reddit_query": "panic buying stockpiling shortage supply",
-          "gdelt_query": "panic buying stockpiling shortage supply supermarket"
+          "reddit_query": "shortage supply stockpile panic supermarket empty shelves",
+          "gdelt_query": "shortage supply shortage stockpiling supermarket panic"
         },
         "panic_selling": {
           "label": "Panic Selling",
-          "news": "panic selling market crash stocks sell-off",
-          "guardian": "market crash stocks",
+          "news": "stock market crash selloff Tadawul DFM ADX exchange",
+          "guardian": "stock market crash financial",
           "reddit_subs": [
             "stocks",
             "investing",
-            "wallstreetbets"
+            "saudiarabia"
           ],
-          "reddit_query": "panic selling market crash stocks sell-off",
-          "gdelt_query": "market crash selloff stocks plunge panic"
+          "reddit_query": "market crash selloff Tadawul DFM stocks plunge lose",
+          "gdelt_query": "stock market crash selloff exchange decline investors"
         }
       }
     },
@@ -224,51 +224,51 @@
       "signals": {
         "food_delivery": {
           "label": "Food Delivery",
-          "news": "food delivery order talabat deliveroo",
-          "guardian": "food delivery",
+          "news": "food delivery Talabat HungerStation Deliveroo Careem",
+          "guardian": "food delivery app restaurant",
           "reddit_subs": [
-            "food",
-            "AskCulinary",
-            "mildlyinfuriating"
+            "dubai",
+            "saudiarabia",
+            "food"
           ],
-          "reddit_query": "food delivery order app restaurant",
-          "gdelt_query": "food delivery order restaurant app"
+          "reddit_query": "Talabat HungerStation Deliveroo Careem food order delivery",
+          "gdelt_query": "food delivery Talabat HungerStation app restaurant order"
         },
         "online_shopping": {
           "label": "Online Shopping",
-          "news": "online shopping ecommerce amazon noon",
+          "news": "ecommerce online shopping Noon Namshi Ounass Amazon",
           "guardian": "ecommerce online shopping",
           "reddit_subs": [
-            "BuyItForLife",
-            "amazon",
+            "dubai",
+            "saudiarabia",
             "onlineshopping"
           ],
-          "reddit_query": "online shopping ecommerce order buy",
-          "gdelt_query": "ecommerce online shopping Amazon Noon delivery"
+          "reddit_query": "online shopping Noon Namshi Ounass Amazon delivery order",
+          "gdelt_query": "ecommerce online retail Noon Amazon delivery growth"
         },
         "home_improvement": {
           "label": "Home & Nesting",
-          "news": "home improvement renovation interior decor",
-          "guardian": "home improvement",
+          "news": "home renovation IKEA furniture interior housing property",
+          "guardian": "home improvement property",
           "reddit_subs": [
-            "DIY",
+            "dubai",
             "HomeImprovement",
             "malelivingspace"
           ],
-          "reddit_query": "home improvement renovation decor DIY",
-          "gdelt_query": "home renovation interior decor improvement"
+          "reddit_query": "home renovation IKEA furniture interior apartment nesting",
+          "gdelt_query": "home improvement renovation housing property interior"
         },
         "travel": {
           "label": "Travel & Escape",
-          "news": "travel holiday vacation escape trip",
-          "guardian": "travel",
+          "news": "travel tourism visa holiday flight hotel destination",
+          "guardian": "travel tourism Middle East",
           "reddit_subs": [
-            "travel",
+            "dubai",
             "solotravel",
-            "backpacking"
+            "saudiarabia"
           ],
-          "reddit_query": "travel holiday vacation escape trip",
-          "gdelt_query": "travel holiday vacation tourism escape"
+          "reddit_query": "travel holiday visa tourism flight hotel vacation escape",
+          "gdelt_query": "tourism travel visa holiday flight hotel destination"
         }
       }
     },
@@ -280,63 +280,63 @@
       "signals": {
         "mental_health": {
           "label": "Mental Health",
-          "news": "mental health anxiety stress depression",
-          "guardian": "mental health",
+          "news": "mental health anxiety depression stress wellbeing burnout",
+          "guardian": "mental health wellbeing",
           "reddit_subs": [
             "mentalhealth",
-            "depression",
+            "dubai",
             "anxiety"
           ],
-          "reddit_query": "mental health anxiety stress depression",
-          "gdelt_query": "mental health anxiety depression stress"
+          "reddit_query": "mental health anxiety stress burnout depression loneliness",
+          "gdelt_query": "mental health wellbeing anxiety stress burnout awareness"
         },
         "meditation": {
           "label": "Meditation & Mindfulness",
-          "news": "meditation mindfulness calm stress relief",
-          "guardian": "meditation mindfulness",
+          "news": "meditation mindfulness wellness calm stress relief",
+          "guardian": "meditation mindfulness wellness",
           "reddit_subs": [
             "Meditation",
             "Mindfulness",
-            "zenbuddhism"
+            "dubai"
           ],
-          "reddit_query": "meditation mindfulness calm stress",
-          "gdelt_query": "meditation mindfulness calm wellbeing"
+          "reddit_query": "meditation mindfulness calm breathing yoga wellbeing",
+          "gdelt_query": "meditation mindfulness wellness calm spiritual practice"
         },
         "fitness": {
           "label": "Fitness & Exercise",
-          "news": "fitness exercise gym workout health",
-          "guardian": "fitness",
+          "news": "fitness gym workout marathon exercise CrossFit health",
+          "guardian": "fitness exercise health",
           "reddit_subs": [
+            "dubai",
             "fitness",
-            "xxfitness",
-            "bodyweightfitness"
+            "xxfitness"
           ],
-          "reddit_query": "fitness workout gym exercise health",
-          "gdelt_query": "fitness exercise gym workout training"
+          "reddit_query": "gym fitness workout CrossFit marathon running health UAE",
+          "gdelt_query": "fitness gym workout marathon exercise health wellness"
         },
         "sleep": {
           "label": "Sleep",
-          "news": "sleep insomnia rest sleep disorder",
-          "guardian": "sleep health",
+          "news": "sleep insomnia disorder fatigue rest health",
+          "guardian": "sleep health insomnia",
           "reddit_subs": [
             "sleep",
             "insomnia",
-            "NightOwls"
+            "dubai"
           ],
-          "reddit_query": "sleep insomnia rest sleep disorder",
-          "gdelt_query": "sleep insomnia rest fatigue disorder"
+          "reddit_query": "sleep insomnia rest tired exhausted trouble sleeping",
+          "gdelt_query": "sleep disorder insomnia fatigue health rest wellbeing"
         },
         "therapy": {
           "label": "Therapy & Counselling",
-          "news": "therapy counselling psychiatrist mental support",
-          "guardian": "therapy counselling",
+          "news": "therapy counselling mental health support psychologist",
+          "guardian": "therapy counselling mental health",
           "reddit_subs": [
             "therapy",
-            "TalkTherapy",
-            "mentalhealth"
+            "mentalhealth",
+            "dubai"
           ],
-          "reddit_query": "therapy counselling mental health support",
-          "gdelt_query": "therapy counselling psychiatry mental support"
+          "reddit_query": "therapy counselling psychologist mental support help",
+          "gdelt_query": "therapy counselling mental health support psychologist"
         }
       }
     },
@@ -348,43 +348,43 @@
       "signals": {
         "charity": {
           "label": "Charity & Donations",
-          "news": "charity donation fund relief aid",
-          "guardian": "charity",
+          "news": "donation charity aid relief humanitarian Gaza Yemen",
+          "guardian": "humanitarian aid charity donation",
           "reddit_subs": [
-            "CharitableDonations",
-            "nonprofit",
-            "volunteer"
+            "worldnews",
+            "islam",
+            "dubai"
           ],
-          "reddit_query": "charity donation relief aid fund",
-          "gdelt_query": "charity donation aid relief fund"
+          "reddit_query": "donation charity aid relief Gaza Yemen fund zakat",
+          "gdelt_query": "humanitarian aid donation charity relief Gaza Yemen"
         },
         "volunteering": {
           "label": "Volunteering",
-          "news": "volunteer community help support",
-          "guardian": "volunteering",
+          "news": "volunteer community service civic programme support",
+          "guardian": "volunteering community",
           "reddit_subs": [
             "volunteer",
-            "nonprofit",
-            "community"
+            "dubai",
+            "jordan"
           ],
-          "reddit_query": "volunteer community help support",
-          "gdelt_query": "volunteer community help support"
+          "reddit_query": "volunteer community service helping support grassroots",
+          "gdelt_query": "volunteer community service civic initiative programme"
         },
         "community": {
           "label": "Community Events",
-          "news": "community event local gathering",
-          "guardian": "community",
+          "news": "community event festival cultural gathering National Day",
+          "guardian": "community events culture",
           "reddit_subs": [
-            "community",
-            "localLFG",
-            "neighborly"
+            "dubai",
+            "saudiarabia",
+            "ArabianPeninsula"
           ],
-          "reddit_query": "community event local gathering neighbourhood",
-          "gdelt_query": "community event gathering neighbourhood local"
+          "reddit_query": "community event gathering festival National Day neighbourhood",
+          "gdelt_query": "community event festival cultural gathering civic"
         }
       }
     }
   },
   "last_updated": "2026-03-27T00:00:00Z",
-  "updated_by": "collect_v4"
+  "updated_by": "keyword_v2_mena_optimised"
 }
