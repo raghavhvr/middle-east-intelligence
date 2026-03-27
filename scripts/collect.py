@@ -270,25 +270,36 @@ def fetch_reddit_all_signals(signals: dict, days: int = 1) -> dict:
 def fetch_reddit_range(signals: dict, days: int = 30) -> dict:
     """
     Backfill: returns { sig_key: { 'YYYYMMDD': normalised_score } }
-    Queries each day individually using Arctic Shift's date-range support.
-    This gives true per-day counts back to Jan 1 (or any date) with no approximation.
+
+    Strategy: fetch one 7-day window per signal per subreddit (4 windows = 28 days),
+    match keywords locally, then distribute the weekly count evenly across the 7 days.
+    This keeps the call count to 28 signals × 4 weeks × 3 subs = 336 calls (~5 min)
+    instead of 28 × 30 × 3 = 2520 calls (~20 hours).
     """
     log.info(f"\nReddit/Arctic Shift backfill ({days} days)...")
     now    = datetime.now(timezone.utc)
     result = {sig: {} for sig in signals}
+    weeks  = (days + 6) // 7  # ceil division
 
     for sig_key, cfg in signals.items():
         subs  = cfg.get("reddit_subs", ["all"])
         query = cfg.get("reddit_query") or cfg.get("news", sig_key)
 
-        for d in range(days, 0, -1):
-            day_start = (now - timedelta(days=d)).replace(
-                hour=0, minute=0, second=0, microsecond=0)
-            day_end   = day_start + timedelta(days=1)
-            day_key   = day_start.strftime("%Y%m%d")
+        for w in range(weeks):
+            # Week window: w=0 is most recent 7 days, w=1 is 8-14 days ago, etc.
+            w_end   = now - timedelta(days=w * 7)
+            w_start = w_end - timedelta(days=7)
+            count   = fetch_arctic_signal(subs, query, w_start, w_end)
 
-            count = fetch_arctic_signal(subs, query, day_start, day_end)
-            result[sig_key][day_key] = count
+            # Distribute weekly count evenly across each day in the window
+            per_day = count / 7
+            for d in range(7):
+                day     = w_start + timedelta(days=d)
+                day_key = day.strftime("%Y%m%d")
+                if day <= now:
+                    result[sig_key][day_key] = per_day
+
+        log.info(f"  {sig_key}: backfill done")
 
     # Normalise 0-100 across all signals and days
     all_vals = [v for sd in result.values() for v in sd.values()]
