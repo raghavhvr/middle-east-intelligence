@@ -209,21 +209,24 @@ ARCTIC_BASE = "https://arctic-shift.photon-reddit.com/api/posts/search"
 def fetch_arctic_signal(subreddits: list, query: str,
                         after: datetime, before: datetime) -> int:
     """
-    Count posts matching `query` across `subreddits` between after and before.
-    Queries each subreddit individually (API doesn't support multi-sub in one call).
-    Returns raw post count.
+    Count posts matching `query` keywords across `subreddits` between after and before.
+
+    Arctic Shift's full-text search index lags ~2 weeks behind, so keyword queries
+    on recent posts return 0. Fix: fetch posts WITHOUT the query param, then match
+    keywords locally against title + selftext. This is reliable for any date range.
     """
     total      = 0
     after_str  = after.strftime("%Y-%m-%dT%H:%M:%SZ")
     before_str = before.strftime("%Y-%m-%dT%H:%M:%SZ")
+    kws        = set(query.lower().split())  # keyword set for local matching
 
     for sub in subreddits[:3]:
         params = {
             "subreddit": sub,
-            "query":     query,
             "after":     after_str,
             "before":    before_str,
             "limit":     100,
+            # No 'query' param — fetch all posts, match locally
         }
         r = safe_get(ARCTIC_BASE, params=params)
         if not r or r.status_code != 200:
@@ -231,11 +234,14 @@ def fetch_arctic_signal(subreddits: list, query: str,
             time.sleep(1)
             continue
         try:
-            posts  = r.json().get("data") or []
-            total += len(posts)
+            posts = r.json().get("data") or []
+            for p in posts:
+                text = (p.get("title", "") + " " + p.get("selftext", "")).lower()
+                if any(kw in text for kw in kws):
+                    total += 1
         except Exception as e:
             log.warning(f"  Arctic Shift parse error [{sub}]: {e}")
-        time.sleep(0.8)  # polite delay
+        time.sleep(0.8)
 
     return total
 
