@@ -510,26 +510,28 @@ export default function App(){
         }
 
 
-        /* ── Sticky market tabs ── */
+        /* ── Fixed market tabs ── */
         .sticky-nav{
-          position:sticky;top:60px;z-index:90;
+          position:fixed;top:60px;left:0;right:0;z-index:90;
           background:rgba(0,0,58,0.97);backdrop-filter:blur(20px);
           border-bottom:1px solid var(--border);
         }
         .market-bar{
           display:flex;gap:0;padding:0 32px;overflow-x:auto;
+          scrollbar-width:none;
         }
+        .market-bar::-webkit-scrollbar{display:none;}
         .mkt-tab{
           font-family:var(--sans);font-size:13px;font-weight:600;letter-spacing:0.5px;
           padding:14px 24px;border:none;background:transparent;
           color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;
-          transition:all .2s;white-space:nowrap;
+          transition:all .2s;white-space:nowrap;flex-shrink:0;
         }
         .mkt-tab:hover{color:var(--text);}
         .mkt-tab.active{color:var(--lime);border-bottom-color:var(--lime);background:rgba(176,244,103,0.04);}
 
         /* ── Main layout ── */
-        .main{padding:28px 32px;display:flex;flex-direction:column;gap:32px;max-width:1500px;margin:0 auto;}
+        .main{padding:28px 32px;padding-top:120px;display:flex;flex-direction:column;gap:32px;max-width:1500px;margin:0 auto;}
 
         /* ── Section header ── */
         .sec{font-family:var(--sans);font-size:10px;font-weight:600;letter-spacing:2px;color:rgba(255,255,255,0.45);
