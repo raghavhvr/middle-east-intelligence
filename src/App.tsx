@@ -56,36 +56,39 @@ function CategoryCard({
     ? Math.min(99, Math.round(Math.log(newsTotal+1)/Math.log(5000)*99))
     : 0;
 
-  // Wikipedia: global index as secondary context
-  const wikiValues = catSignals.map(k=>{
+  // New schema: use Reddit-based market score as primary, gnews article count as secondary
+  const marketScores = catSignals.map(k=>{
     const v = markets[activeMarket]?.[k];
-    return Array.isArray(v) ? v[v.length-1] : null;
+    return (v != null && typeof v === "number") ? v : null;
   }).filter(v=>v!==null) as number[];
-  const wikiAvg = wikiValues.length
-    ? Math.round(wikiValues.reduce((a,b)=>a+b,0)/wikiValues.length)
+  const marketAvg = marketScores.length
+    ? Math.round(marketScores.reduce((a,b)=>a+b,0)/marketScores.length)
     : null;
 
-  // RSS market signal
+  // RSS market signal (genuinely per-market from Trends RSS)
   const rssMarket = rss[activeMarket]||{};
   let rssSignal = 0;
   if(catKey==="crisis_awareness") rssSignal = rssMarket.crisis_pct||0;
   else if(catKey==="escapism")    rssSignal = rssMarket.sport_entertainment_pct||0;
   else rssSignal = Math.round(((rssMarket.sport_entertainment_pct||0)+(rssMarket.crisis_pct||0))/2);
 
-  // Primary display score = news volume (market-specific) + rss modifier
-  const hasNewsData = newsTotal > 0;
-  const displayScore = hasNewsData
-    ? Math.min(99, Math.round(newsScore * 0.7 + rssSignal * 0.3))
-    : (wikiAvg ?? 0);
+  // Display score: Reddit market score blended with RSS
+  const hasMarketData = marketScores.length > 0;
+  const hasNewsData   = newsTotal > 0;
+  const displayScore  = hasMarketData
+    ? Math.min(99, Math.round((marketAvg??0) * 0.7 + (hasNewsData ? newsScore*0.3 : rssSignal*0.3)))
+    : (hasNewsData ? Math.min(99,Math.round(newsScore*0.7+rssSignal*0.3)) : 0);
 
-  // Sparkline: per-signal news volumes (market-specific bars)
-  const hasRealData = hasNewsData || (wikiValues.length > 0);
-  const sparkData = hasNewsData
+  // Sparkline: per-signal market scores (genuinely market-specific)
+  const hasRealData = hasMarketData || hasNewsData;
+  const sparkData = hasMarketData
     ? catSignals.map(k=>{
-        const v = (newsapi[k]||0)+(guardian[k]||0);
-        return Math.round((v/newsMax)*90)+5;
+        const v = markets[activeMarket]?.[k];
+        return (v != null && typeof v === "number") ? Math.round(v) : 0;
       })
-    : Array.from({length:8},(_,i)=>20+i*2); // placeholder
+    : hasNewsData
+      ? catSignals.map(k=> Math.round(((newsapi[k]||0)/newsMax)*90)+5)
+      : Array.from({length:4},(_,i)=>15+i*5); // placeholder
   const sparkMax = Math.max(...sparkData,1);
   const trend = sparkData.length>=2 ? sparkData[sparkData.length-1]-sparkData[0] : 0;
 
@@ -140,32 +143,23 @@ function SignalRow({sigKey,sig,markets,activeMarket,dates,newsapi,guardian,newsa
   sigKey:string,sig:any,markets:any,activeMarket:string,
   dates:string[],newsapi:any,guardian:any,newsapiAllMarkets:any
 }){
-  // Wiki data (global — same across markets, used as baseline trend shape)
-  const wikiVals = markets[activeMarket]?.[sigKey]||[];
+  // New schema: market score is a scalar float (Reddit-based, 0-100)
+  const marketScore = (()=>{ const v=markets[activeMarket]?.[sigKey]; return (v!=null&&typeof v==="number")?v:null; })();
+  const newsVol     = newsapiAllMarkets?.[activeMarket]?.[sigKey]||0; // gnews count
 
-  // Per-market news volume — this IS market-specific
-  const newsVol   = (newsapi[sigKey]||0) + (guardian[sigKey]||0);
-  const guardianV = guardian[sigKey]||0;
-
-  // Use news volume as the primary market-specific index (normalised to 0-100)
-  // Compute max across all markets for this signal to normalise
+  // Trend vs other markets
   const allMarkets = Object.keys(MARKET_FLAGS);
-  const allVols = allMarkets.map(m=>{
-    const na = newsapiAllMarkets?.[m]?.[sigKey]||0;
-    return na + guardianV; // guardian is global so same, but na differs
-  });
-  const maxVol = Math.max(...allVols, 1);
-  const normVol = Math.round((newsVol / maxVol) * 100);
+  const allScores  = allMarkets.map(m=>{ const v=markets[m]?.[sigKey]; return (v!=null&&typeof v==="number")?v:null; }).filter(v=>v!=null) as number[];
+  const avgScore   = allScores.length ? allScores.reduce((a,b)=>a+b,0)/allScores.length : 50;
+  const normVol    = marketScore ?? Math.round((newsVol / Math.max(...allMarkets.map(m=>newsapiAllMarkets?.[m]?.[sigKey]||0),1))*100);
+  const pct        = avgScore > 0 ? Math.round(((normVol - avgScore)/avgScore)*100) : 0;
 
-  // Trend: compare to other markets (are we above/below average?)
-  const avgVol = allVols.reduce((a,b)=>a+b,0)/allVols.length;
-  const pct = avgVol > 0 ? Math.round(((newsVol - avgVol)/avgVol)*100) : 0;
-
-  // Sparkline: use wiki shape if available (shows 7-day trend), else flat
-  const hasWiki = wikiVals.length > 0;
-  const chartData = hasWiki
-    ? dates.map((d:string,i:number)=>({date:d,value:wikiVals[i]??null}))
-    : dates.map((d:string)=>({date:d,value:normVol}));
+  // Sparkline from history — per-market signal values over time
+  const chartData = history.slice(-7).map((rec:any)=>({
+    date: rec.date?.slice(5)||"",
+    value: (()=>{ const v=rec.markets?.[activeMarket]?.[sigKey]; return (v!=null&&typeof v==="number")?v:null; })()
+  }));
+  const hasWiki = chartData.some((d:any)=>d.value!=null);
 
   return (
     <div className="signal-row">
@@ -182,7 +176,7 @@ function SignalRow({sigKey,sig,markets,activeMarket,dates,newsapi,guardian,newsa
         </ResponsiveContainer>
       </div>
       <div className="signal-row-right">
-        <div className="signal-val">{normVol}</div>
+        <div className="signal-val">{Math.round(marketScore ?? normVol)}</div>
         <div className={`signal-pct ${pct>0?"up":pct<0?"down":"flat"}`}
           title={`vs market avg ${Math.round(avgVol)} articles`}>
           {pct>0?"▲":pct<0?"▼":"→"}{Math.abs(pct)}%
@@ -243,8 +237,7 @@ function SettingsPanel({config,onClose,onSave}:{config:any,onClose:()=>void,onSa
                   <div className="sp-fields">
                     <div className="sp-field-group">
                       <label className="sp-field-label">Wikipedia</label>
-                      <input className="sp-input sm" value={sig.wiki}
-                        onChange={e=>toggle(catKey,sigKey,"wiki",e.target.value)} />
+
                     </div>
                     <div className="sp-field-group">
                       <label className="sp-field-label">NewsAPI</label>
@@ -253,8 +246,7 @@ function SettingsPanel({config,onClose,onSave}:{config:any,onClose:()=>void,onSa
                     </div>
                     <div className="sp-field-group">
                       <label className="sp-field-label">Guardian</label>
-                      <input className="sp-input sm" value={sig.guardian}
-                        onChange={e=>toggle(catKey,sigKey,"guardian",e.target.value)} />
+
                     </div>
                   </div>
                 </div>
@@ -356,51 +348,36 @@ export default function App(){
   const global       = data.global||{};
   const rss          = global.rss_trends||{};
   const twitch       = global.twitch||{};
-  // newsapi is per-market { UAE:{gaming:12,...}, KSA:... } after new collector runs
-  // or legacy flat { gaming: 28, ... } from older runs
-  const newsapiRaw   = data.news_volumes?.newsapi||{};
-  const newsapiGlobal= data.news_volumes?.newsapi_global||{};
-  const isPerMarket  = typeof Object.values(newsapiRaw)[0] === "object";
-
-  // When flat (legacy), synthesise per-market variant using RSS weights as multipliers.
-  // RSS gives genuine per-market signals: sport_entertainment_pct & crisis_pct differ by market.
-  // Signal→RSS category mapping
-  const SIG_CATEGORY: Record<string,string> = {
-    gaming:"sport", streaming:"sport", humour:"sport", beauty:"sport",
-    breaking_news:"crisis", crisis_topics:"crisis", war_news:"crisis",
-    flight_searches:"crisis", fact_checking:"crisis", social_news:"crisis",
-    price_comparison:"econ", discounts:"econ", budgeting:"econ",
-    inflation:"econ", panic_buying:"econ", panic_selling:"econ",
-    food_delivery:"behav", online_shopping:"behav", home_improvement:"behav",
-    travel:"behav", mental_health:"wellness", meditation:"wellness",
-    fitness:"wellness", sleep:"wellness", therapy:"wellness",
-    charity:"social", volunteering:"social", community:"social",
-  };
-  // Build synthetic per-market newsapi from flat + RSS weights
-  const buildMarketNewsapi = (market: string, flat: Record<string,number>) => {
-    const r = rss[market]||{};
-    const sportW  = (r.sport_entertainment_pct||50) / 50; // 1.0 = average
-    const crisisW = (r.crisis_pct||50) / 50;
-    const result: Record<string,number> = {};
-    Object.entries(flat).forEach(([sig, vol]) => {
-      const cat = SIG_CATEGORY[sig]||"econ";
-      const w = cat==="sport" ? sportW : cat==="crisis" ? crisisW : 1.0;
-      result[sig] = Math.round((vol as number) * w);
-    });
-    return result;
-  };
-
-  // Always build per-market newsapi — real if available, synthetic from RSS otherwise
-  const newsapiByMarket: Record<string,Record<string,number>> = {};
-  Object.keys(MARKET_FLAGS).forEach(m => {
-    newsapiByMarket[m] = isPerMarket
-      ? (newsapiRaw[m]||{})
-      : buildMarketNewsapi(m, newsapiRaw);
-  });
-  const newsapi = newsapiByMarket[activeMarket]||{};
-  const guardian     = data.news_volumes?.guardian||{};
   const dates        = data.dates||[];
   const sources      = data.sources_live||[];
+
+  // New schema: markets[market][signal] = scalar float (Reddit-based score 0-100)
+  // news_volumes.gnews[market][signal] = { count, titles }
+  // global.reddit[signal] = normalised score
+  const gnewsByMarket: Record<string,Record<string,any>> = data.news_volumes?.gnews||{};
+  const redditScores: Record<string,number>              = global.reddit||{};
+  const conflictData: Record<string,any>                 = data.conflict||{};
+
+  // Helpers: get per-market signal score and article count
+  const getMarketScore  = (market:string, sig:string): number|null => {
+    const v = markets[market]?.[sig];
+    return (v != null && typeof v === "number") ? v : null;
+  };
+  const getGnewsCount   = (market:string, sig:string): number =>
+    gnewsByMarket[market]?.[sig]?.count || 0;
+  const getGnewsTitles  = (market:string, sig:string): string[] =>
+    gnewsByMarket[market]?.[sig]?.titles || [];
+
+  // For backward compat with CategoryCard/SignalRow props, build newsapi-shaped object
+  // from gnews counts (per-market article volumes)
+  const newsapiByMarket: Record<string,Record<string,number>> = {};
+  Object.keys(MARKET_FLAGS).forEach(m => {
+    const entry: Record<string,number> = {};
+    Object.keys(flatSigs).forEach(s => { entry[s] = getGnewsCount(m, s); });
+    newsapiByMarket[m] = entry;
+  });
+  const newsapi  = newsapiByMarket[activeMarket]||{};
+  const guardian: Record<string,number> = {};  // removed — kept as empty for compat
 
 
   const activeCatObj  = activeCat ? categories[activeCat] : null;
@@ -417,22 +394,13 @@ export default function App(){
     const row:any = {date: rec.date?.slice(5)};
     catKeys.forEach(ck=>{
       const sigs = Object.keys(categories[ck]?.signals||{});
-      // Base value from history (wiki, global — same across markets)
-      const baseVals: number[] = sigs
-        .map(s => rec.markets?.["UAE"]?.[s])
-        .filter((v:any) => v != null && !isNaN(Number(v))) as number[];
-      const base = baseVals.length
-        ? baseVals.reduce((a:number,b:number)=>a+b,0) / baseVals.length
+      // Use actual per-market scores directly from history
+      const vals: number[] = sigs
+        .map(s => rec.markets?.[activeMarket]?.[s])
+        .filter((v:any) => v != null && typeof v === "number" && !isNaN(v)) as number[];
+      row[ck] = vals.length
+        ? Math.round(vals.reduce((a:number,b:number)=>a+b,0) / vals.length)
         : null;
-      if(base === null){ row[ck] = null; return; }
-      // Apply per-market RSS multiplier to create market differentiation
-      const r = rss[activeMarket]||{};
-      const sportW  = (r.sport_entertainment_pct||50) / 50;
-      const crisisW = (r.crisis_pct||50) / 50;
-      const catType = ck==="escapism"||ck==="entertainment" ? "sport"
-        : ck==="crisis_awareness"||ck==="news" ? "crisis" : "econ";
-      const w = catType==="sport" ? sportW : catType==="crisis" ? crisisW : (sportW+crisisW)/2;
-      row[ck] = Math.min(99, Math.round(base * w * 10) / 10);
     });
     return row;
   });
@@ -458,13 +426,11 @@ export default function App(){
     });
     const newsAvg = mktNewsVals.length ? Math.round(mktNewsVals.reduce((a,b)=>a+b,0)/mktNewsVals.length) : 0;
     // Wiki as fallback shape if newsapi not available
-    const wikiVals = sigs.map(s=>{
-      const v = markets[activeMarket]?.[s];
-      return Array.isArray(v) ? v[v.length-1] : (v??0);
-    }).filter((v:any)=>v!=null) as number[];
-    const wikiAvg = wikiVals.length ? Math.round(wikiVals.reduce((a,b)=>a+b,0)/wikiVals.length) : 0;
+    const marketVals = sigs.map(s=>{ const v=markets[activeMarket]?.[s]; return (v!=null&&typeof v==="number")?v:null; }).filter((v:any)=>v!=null) as number[];
+    const marketAvg2 = marketVals.length ? Math.round(marketVals.reduce((a,b)=>a+b,0)/marketVals.length) : 0;
     const hasNewsData = sigs.some(s=>(newsapiByMarket[activeMarket]?.[s]||0)>0);
-    return {category:cat.label.split("&")[0].trim(), value:hasNewsData ? newsAvg : wikiAvg, fullMark:100};
+    const val = marketVals.length ? Math.round(marketAvg2*0.6+(hasNewsData?newsAvg:0)*0.4) : (hasNewsData?newsAvg:0);
+    return {category:cat.label.split("&")[0].trim(), value:val, fullMark:100};
   });
 
   const fetchedAt  = new Date(data.fetched_at);
@@ -737,9 +703,9 @@ export default function App(){
         </div>
         <div className="hdr-right">
           <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-            {["wikipedia","google_rss","newsapi","guardian","twitch"].map(s=>(
+            {["reddit","google_rss","google_news_rss","acled","twitch"].map(s=>(
               <span key={s} className={`chip ${sources.includes(s)?"live":"dead"}`}>
-                {s.replace("_"," ")}
+                {s.replace(/_/g," ")}
               </span>
             ))}
           </div>
@@ -773,7 +739,7 @@ export default function App(){
                 activeMarket={activeMarket}
                 isActive={activeCat===ck}
                 onClick={()=>setActiveCat(activeCat===ck?null:ck)}
-                newsapi={newsapi} guardian={guardian} rss={rss} />
+                newsapi={newsapi} guardian={guardian} rss={rss} markets={markets} />
             ))}
           </div>
         </div>
@@ -818,7 +784,9 @@ export default function App(){
                   // Build per-market category average from history (last 30 days)
                   const allMkts = Object.keys(MARKET_FLAGS);
                   const mktColors:Record<string,string> = {
-                    UAE:"#00e5c8", KSA:"#f72585", Kuwait:"#fb8500", Qatar:"#8338ec"
+                    UAE:"#00e5c8", "Saudi Arabia":"#f72585", Kuwait:"#fb8500", Qatar:"#8338ec",
+                    Bahrain:"#fb8500", Oman:"#43aa8b", Lebanon:"#f4a261", Jordan:"#e76f51",
+                    Iraq:"#e9c46a", Syria:"#264653", Egypt:"#9b5de5", Yemen:"#f15bb5", Israel:"#00bbf9"
                   };
                   // Apply same RSS-weight multiplier as main history chart
                   // so per-market lines are genuinely different
@@ -828,15 +796,10 @@ export default function App(){
                     date: rec.date?.slice(5),
                     ...Object.fromEntries(allMkts.map(m=>{
                       const vals = activeSigKeys
-                        .map((s:string)=>rec.markets?.["UAE"]?.[s])
+                        .map((s:string)=>{ const v=rec.markets?.[m]?.[s]; return (v!=null&&typeof v==="number")?v:null; })
                         .filter((v:any)=>v!=null) as number[];
-                      const base = vals.length ? vals.reduce((a:number,b:number)=>a+b,0)/vals.length : null;
-                      if(base===null) return [m, null];
-                      const rm = rss[m]||{};
-                      const sportW = (rm.sport_entertainment_pct||50)/50;
-                      const crisisW = (rm.crisis_pct||50)/50;
-                      const w = catType==="sport" ? sportW : catType==="crisis" ? crisisW : (sportW+crisisW)/2;
-                      return [m, Math.min(99, Math.round(base * w))];
+                      const avg = vals.length ? Math.round(vals.reduce((a:number,b:number)=>a+b,0)/vals.length) : null;
+                      return [m, avg];
                     }))
                   }));
                   return (

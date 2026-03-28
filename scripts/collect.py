@@ -167,6 +167,12 @@ def flat_signals(config: dict) -> dict:
 def safe_get(url, **kwargs):
     try:
         return requests.get(url, timeout=30, **kwargs)
+    except requests.exceptions.ConnectionError as e:
+        log.warning(f"  Connection error (DNS/network): {str(e)[:80]}")
+        return None
+    except requests.exceptions.Timeout:
+        log.warning(f"  Request timed out: {url[:60]}")
+        return None
     except Exception as e:
         log.warning(f"  Request failed: {e}")
         return None
@@ -600,8 +606,11 @@ def fetch_acled_market(market: str, token: str, days: int = 7) -> dict:
             "fields":           ACLED_FIELDS,
         }
         r = safe_get(ACLED_BASE, headers=headers, params=params)
-        if not r or r.status_code != 200:
-            log.warning(f"  ACLED {r.status_code if r else 'timeout'} [{market}/{country}]")
+        if not r:
+            log.warning(f"  ACLED timeout/DNS failure [{market}/{country}] — skipping")
+            continue
+        if r.status_code != 200:
+            log.warning(f"  ACLED {r.status_code} [{market}/{country}]")
             continue
         try:
             data = r.json()
@@ -692,12 +701,11 @@ def blend_signals_into_scores(market_scores: dict, rss_data: dict,
 
         for sig_key in signals:
             base = blended.get(market_name, {}).get(sig_key)
-            if base is None:
-                continue
+            if base is None or not isinstance(base, (int, float)):
+                continue  # skip None, lists, or any non-numeric legacy values
 
             boost = 0
             if sig_key in CRISIS_SIGNALS:
-                # RSS crisis contributes up to +15; ACLED intensity up to +25
                 boost = crisis_pct * 0.15 + acled_inten * 0.25
             elif sig_key in SPORT_SIGNALS:
                 boost = sport_pct * 0.10
@@ -857,7 +865,15 @@ def collect():
         "fetched_at":     now.isoformat(),
         "dates":          date_labels,
         "categories":     {},
-        "markets":        {m: dict(existing.get("markets",{}).get(m,{})) for m in MARKETS.values()},
+        "markets":        {
+            m: {
+                # Discard any legacy list-valued signals (old wiki pageview arrays)
+                # and keep only scalar scores (float/int)
+                k: v for k, v in existing.get("markets", {}).get(m, {}).items()
+                if isinstance(v, (int, float)) and not isinstance(v, bool)
+            }
+            for m in MARKETS.values()
+        },
         "global":         {},
         "news_volumes":   {},
         "conflict":       {},
