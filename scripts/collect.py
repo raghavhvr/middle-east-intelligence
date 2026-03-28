@@ -28,6 +28,23 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 log = logging.getLogger(__name__)
 
+_RUN_START = datetime.now(timezone.utc)
+
+def elapsed() -> str:
+    """Return a human-readable elapsed time since the run started."""
+    secs = int((datetime.now(timezone.utc) - _RUN_START).total_seconds())
+    h, rem = divmod(secs, 3600)
+    m, s   = divmod(rem, 60)
+    if h:
+        return f"{h}h {m}m {s}s"
+    if m:
+        return f"{m}m {s}s"
+    return f"{s}s"
+
+def heartbeat(msg: str = "still running..."):
+    """Log a timestamped heartbeat — keeps GitHub Actions from killing silent jobs."""
+    log.info(f"  ♥  [{elapsed()}] {msg}")
+
 # Full MENA coverage: GCC + Levant + North Africa + Yemen
 MARKETS = {
     # GCC
@@ -313,9 +330,16 @@ def fetch_reddit_range(signals: dict, days: int = 30) -> dict:
     result = {sig: {} for sig in signals}
     weeks  = (days + 6) // 7  # ceil division
 
-    for sig_key, cfg in signals.items():
+    total_sigs = len(signals)
+    for i, (sig_key, cfg) in enumerate(signals.items(), 1):
+        if sig_key in result and result[sig_key]:
+            log.info(f"  {sig_key} ({i}/{total_sigs}): skipped (already in partial checkpoint)")
+            continue
+
         subs  = cfg.get("reddit_subs", ["all"])
         query = cfg.get("reddit_query") or cfg.get("news", sig_key)
+
+        heartbeat(f"Reddit backfill {i}/{total_sigs}: {sig_key}")
 
         for w in range(weeks):
             # Week window: w=0 is most recent 7 days, w=1 is 8-14 days ago, etc.
@@ -331,7 +355,8 @@ def fetch_reddit_range(signals: dict, days: int = 30) -> dict:
                 if day <= now:
                     result[sig_key][day_key] = per_day
 
-        log.info(f"  {sig_key}: backfill done")
+        partial_cp_path.write_text(json.dumps(result))
+        log.info(f"  [{elapsed()}] {sig_key} ({i}/{total_sigs}): done + checkpoint written")
 
     # Normalise 0-100 across all signals and days
     all_vals = [v for sd in result.values() for v in sd.values()]
@@ -570,10 +595,21 @@ def fetch_gdelt_backfill(signals: dict, days: int = 30) -> dict:
     except:
         pass
 
+    total_pairs = len(GDELT_MARKETS) * len(signals)
+    pair_num    = 0
+
     for market_name in GDELT_MARKETS:
+        done_in_market = sum(1 for s in signals if result[market_name].get(s))
+        log.info(f"\n  [{elapsed()}] GDELT market: {market_name} "
+                 f"({done_in_market}/{len(signals)} signals already done)")
+
         for sig_key, cfg in signals.items():
+            pair_num += 1
             if result[market_name].get(sig_key):
+                log.info(f"  skip {market_name}/{sig_key} (from checkpoint)")
                 continue  # already loaded from partial checkpoint
+
+            heartbeat(f"GDELT {pair_num}/{total_pairs} — {market_name}/{sig_key}")
 
             query     = cfg.get("gdelt_query") or cfg.get("news", sig_key)
             geo       = MARKET_GDELT_GEO.get(market_name, market_name)
@@ -587,10 +623,12 @@ def fetch_gdelt_backfill(signals: dict, days: int = 30) -> dict:
             }
             r = _gdelt_get(params)
             if not r:
+                log.warning(f"  GDELT gave up on {market_name}/{sig_key} after retries — skipping")
                 continue
             try:
                 tl = r.json().get("timeline", [])
                 if not tl or not tl[0].get("data"):
+                    log.info(f"  -- {market_name}/{sig_key}: no data")
                     continue
                 daily: dict = {}
                 for entry in tl[0]["data"]:
@@ -602,8 +640,9 @@ def fetch_gdelt_backfill(signals: dict, days: int = 30) -> dict:
                         pass
                 result[market_name][sig_key] = {k: round(v) for k, v in daily.items()}
                 if daily:
-                    log.info(f"  OK {market_name}/{sig_key}: {len(daily)} days")
+                    log.info(f"  OK {market_name}/{sig_key}: {len(daily)} days [{elapsed()}]")
                     gdelt_partial_path.write_text(json.dumps(result))
+                    log.info(f"  written partial checkpoint ({pair_num}/{total_pairs} pairs done)")
             except Exception as e:
                 log.warning(f"  GDELT backfill {market_name}/{sig_key}: {e}")
 
@@ -880,25 +919,27 @@ def backfill(signals: dict, acled_email: str, acled_password: str) -> list:
 
     # Reddit: weekly buckets
     if "reddit" in cp["completed"]:
-        log.info("  Reddit: loaded from checkpoint")
+        log.info("  Reddit: loaded from checkpoint — skipping fetch")
         reddit_range = cp["reddit"]
     else:
+        heartbeat("Starting Reddit backfill")
         reddit_range = fetch_reddit_range(signals, days=BACKFILL_DAYS)
         cp["reddit"] = reddit_range
         cp["completed"].append("reddit")
         save_checkpoint(cp)
-        log.info("  Reddit: checkpoint saved")
+        log.info(f"  Reddit complete [{elapsed()}] — checkpoint saved")
 
     # GDELT: daily timeline per signal per market
     if "gdelt" in cp["completed"]:
-        log.info("  GDELT: loaded from checkpoint")
+        log.info("  GDELT: loaded from checkpoint — skipping fetch")
         gdelt_range = cp["gdelt"]
     else:
+        heartbeat("Starting GDELT backfill (this is the long one)")
         gdelt_range = fetch_gdelt_backfill(signals, days=BACKFILL_DAYS)
         cp["gdelt"] = gdelt_range
         cp["completed"].append("gdelt")
         save_checkpoint(cp)
-        log.info("  GDELT: checkpoint saved")
+        log.info(f"  GDELT complete [{elapsed()}] — checkpoint saved")
 
     # ACLED: single 30-day pull per market
     acled_30d = {}
@@ -1077,6 +1118,7 @@ def collect():
         }
 
     # ── Reddit ────────────────────────────────────────────────────────────────
+    heartbeat("Fetching today's Reddit signals")
     reddit_scores = fetch_reddit_all_signals(signals, days=1)
     if reddit_scores:
         result["global"]["reddit"] = reddit_scores
@@ -1108,6 +1150,7 @@ def collect():
         result["sources_failed"].append("google_rss")
 
     # ── GDELT ─────────────────────────────────────────────────────────────────
+    heartbeat("Fetching today's GDELT signals")
     gdelt_vols = fetch_gdelt_all(signals, timespan="24h")
     if gdelt_vols:
         result["news_volumes"]["gdelt"] = gdelt_vols
@@ -1116,6 +1159,7 @@ def collect():
         result["sources_failed"].append("gdelt")
 
     # ── Google News RSS (MENA outlets) ────────────────────────────────────────
+    heartbeat("Fetching Google News RSS")
     gnews_vols = fetch_gnews_all(signals, days=7)
     if gnews_vols:
         result["news_volumes"]["gnews"] = gnews_vols
@@ -1124,6 +1168,7 @@ def collect():
         result["sources_failed"].append("google_news_rss")
 
     # ── ACLED ─────────────────────────────────────────────────────────────────
+    heartbeat("Fetching ACLED conflict data")
     acled_data = fetch_acled_all(acled_email, acled_password, days=7)
     if acled_data:
         result["conflict"] = acled_data
