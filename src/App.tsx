@@ -471,7 +471,7 @@ export default function App(){
             radial-gradient(ellipse at 50% 50%,rgba(84,101,255,0.04) 0%,transparent 70%);}
 
         /* ── Top bar wrapper (header + market nav stick together) ── */
-        .top-bar{position:sticky;top:0;z-index:100;}
+        .top-bar{position:sticky;top:0;z-index:100;background:rgba(0,0,58,0.97);backdrop-filter:blur(20px);}
         /* ── Header ── */
         .hdr{
           display:flex;align-items:center;justify-content:space-between;
