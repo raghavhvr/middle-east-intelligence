@@ -314,14 +314,27 @@ def fetch_reddit_range(signals: dict, days: int = 30) -> dict:
     instead of 28 x 30 x 3 = 2520 calls (~20 hours).
     """
     log.info(f"\nReddit/Arctic Shift backfill ({days} days)...")
-    now    = datetime.now(timezone.utc)
-    result = {sig: {} for sig in signals}
-    weeks  = (days + 6) // 7  # ceil division
+    now             = datetime.now(timezone.utc)
+    result          = {sig: {} for sig in signals}
+    weeks           = (days + 6) // 7
+    partial_cp_path = CHECKPOINT_PATH.parent / "backfill_reddit_partial.json"
+
+    # Resume from partial checkpoint if one exists
+    try:
+        if partial_cp_path.exists():
+            saved = json.loads(partial_cp_path.read_text())
+            for sig, data in saved.items():
+                if sig in result and data:
+                    result[sig] = data
+            done = sum(1 for v in result.values() if v)
+            log.info(f"  Resuming Reddit backfill ({done}/{len(signals)} signals already done)")
+    except Exception as e:
+        log.warning(f"  Could not load Reddit partial checkpoint: {e}")
 
     total_sigs = len(signals)
     for i, (sig_key, cfg) in enumerate(signals.items(), 1):
-        if sig_key in result and result[sig_key]:
-            log.info(f"  {sig_key} ({i}/{total_sigs}): skipped (already in partial checkpoint)")
+        if result[sig_key]:
+            log.info(f"  {sig_key} ({i}/{total_sigs}): skipped (from checkpoint)")
             continue
 
         subs  = cfg.get("reddit_subs", ["all"])
@@ -330,12 +343,9 @@ def fetch_reddit_range(signals: dict, days: int = 30) -> dict:
         heartbeat(f"Reddit backfill {i}/{total_sigs}: {sig_key}")
 
         for w in range(weeks):
-            # Week window: w=0 is most recent 7 days, w=1 is 8-14 days ago, etc.
             w_end   = now - timedelta(days=w * 7)
             w_start = w_end - timedelta(days=7)
             count   = fetch_arctic_signal(subs, query, w_start, w_end)
-
-            # Distribute weekly count evenly across each day in the window
             per_day = count / 7
             for d in range(7):
                 day     = w_start + timedelta(days=d)
@@ -343,7 +353,10 @@ def fetch_reddit_range(signals: dict, days: int = 30) -> dict:
                 if day <= now:
                     result[sig_key][day_key] = per_day
 
-        partial_cp_path.write_text(json.dumps(result))
+        try:
+            partial_cp_path.write_text(json.dumps(result))
+        except Exception as e:
+            log.warning(f"  Could not write Reddit partial checkpoint: {e}")
         log.info(f"  [{elapsed()}] {sig_key} ({i}/{total_sigs}): done + checkpoint written")
 
     # Normalise 0-100 across all signals and days
