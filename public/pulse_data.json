@@ -1,5 +1,5 @@
 {
-  "fetched_at": "2026-03-28T08:27:57.470885+00:00",
+  "fetched_at": "2026-03-28T08:49:54.737690+00:00",
   "dates": [
     "Mar 21",
     "Mar 22",
@@ -2191,5 +2191,6 @@
   ],
   "ramadan_active": false,
   "_placeholder": true,
-  "_note": "Placeholder \u2014 waiting for first workflow run to populate real data"
+  "_note": "Placeholder \u2014 waiting for first workflow run to populate real data",
+  "error": "name 'partial_cp_path' is not defined"
 }
