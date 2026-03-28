@@ -15,8 +15,7 @@
             "dubai",
             "saudiarabia"
           ],
-          "reddit_query": "gaming PlayStation FIFA eFootball mobile game",
-          "gdelt_query": "gaming esports tournament mobile PlayStation"
+          "reddit_query": "gaming PlayStation FIFA eFootball mobile game"
         },
         "streaming": {
           "label": "Streaming",
@@ -27,8 +26,7 @@
             "dubai",
             "ArabianPeninsula"
           ],
-          "reddit_query": "streaming Shahid Netflix OSN Anghami watching series",
-          "gdelt_query": "streaming Shahid Netflix OSN series subscribers"
+          "reddit_query": "streaming Shahid Netflix OSN Anghami watching series"
         },
         "humour": {
           "label": "Humour & Comedy",
@@ -39,8 +37,7 @@
             "memes",
             "dubai"
           ],
-          "reddit_query": "meme viral funny TikTok trending video",
-          "gdelt_query": "viral video TikTok social media trend humor"
+          "reddit_query": "meme viral funny TikTok trending video"
         },
         "beauty": {
           "label": "Beauty & Self-care",
@@ -51,8 +48,7 @@
             "MakeupAddiction",
             "MiddleEasternMUA"
           ],
-          "reddit_query": "skincare beauty makeup routine halal cosmetics",
-          "gdelt_query": "beauty cosmetics skincare luxury brand launch"
+          "reddit_query": "skincare beauty makeup routine halal cosmetics"
         }
       }
     },
@@ -71,8 +67,7 @@
             "geopolitics",
             "CredibleDefense"
           ],
-          "reddit_query": "breaking news urgent developing MENA Middle East",
-          "gdelt_query": "breaking news urgent developing situation update"
+          "reddit_query": "breaking news urgent developing MENA Middle East"
         },
         "crisis_topics": {
           "label": "Crisis Topics",
@@ -83,8 +78,7 @@
             "geopolitics",
             "Refugees"
           ],
-          "reddit_query": "humanitarian crisis food shortage displaced refugees MENA",
-          "gdelt_query": "humanitarian crisis displacement food security aid"
+          "reddit_query": "humanitarian crisis food shortage displaced refugees MENA"
         },
         "war_news": {
           "label": "War & Conflict",
@@ -95,8 +89,7 @@
             "IsraelPalestine",
             "CredibleDefense"
           ],
-          "reddit_query": "war Gaza Lebanon Yemen ceasefire airstrike offensive",
-          "gdelt_query": "airstrike ceasefire offensive casualties military operation"
+          "reddit_query": "war Gaza Lebanon Yemen ceasefire airstrike offensive"
         },
         "flight_searches": {
           "label": "Flight Searches",
@@ -107,8 +100,7 @@
             "dubai",
             "flightdeals"
           ],
-          "reddit_query": "flights airport travel evacuation departure visa cancel",
-          "gdelt_query": "flights airport closure evacuation travel ban airspace"
+          "reddit_query": "flights airport travel evacuation departure visa cancel"
         },
         "fact_checking": {
           "label": "Fact-checking",
@@ -119,8 +111,7 @@
             "skeptic",
             "IsraelPalestine"
           ],
-          "reddit_query": "fake news misinformation propaganda debunked fabricated",
-          "gdelt_query": "misinformation disinformation propaganda fabricated video"
+          "reddit_query": "fake news misinformation propaganda debunked fabricated"
         },
         "social_news": {
           "label": "Social Media News",
@@ -131,8 +122,7 @@
             "worldnews",
             "socialmedia"
           ],
-          "reddit_query": "trending hashtag viral social media X Twitter TikTok",
-          "gdelt_query": "social media trending hashtag viral platform"
+          "reddit_query": "trending hashtag viral social media X Twitter TikTok"
         }
       }
     },
@@ -151,8 +141,7 @@
             "saudiarabia",
             "Frugal"
           ],
-          "reddit_query": "price expensive cheap deal Noon Amazon Carrefour LuLu",
-          "gdelt_query": "consumer prices retail cost expensive affordable"
+          "reddit_query": "price expensive cheap deal Noon Amazon Carrefour LuLu"
         },
         "discounts": {
           "label": "Discounts & Coupons",
@@ -163,8 +152,7 @@
             "saudiarabia",
             "deals"
           ],
-          "reddit_query": "sale discount White Friday DSF promo offer deal",
-          "gdelt_query": "sale discount retail promotion White Friday shopping"
+          "reddit_query": "sale discount White Friday DSF promo offer deal"
         },
         "budgeting": {
           "label": "Budgeting & Savings",
@@ -175,8 +163,7 @@
             "saudiarabia",
             "personalfinance"
           ],
-          "reddit_query": "cost of living rent expensive salary budget saving expat",
-          "gdelt_query": "cost living rent wages household budget savings"
+          "reddit_query": "cost of living rent expensive salary budget saving expat"
         },
         "inflation": {
           "label": "Inflation",
@@ -187,8 +174,7 @@
             "dubai",
             "egypt"
           ],
-          "reddit_query": "inflation prices rising cost food fuel dollar economy",
-          "gdelt_query": "inflation prices consumer food fuel currency economy"
+          "reddit_query": "inflation prices rising cost food fuel dollar economy"
         },
         "panic_buying": {
           "label": "Panic Buying",
@@ -199,8 +185,7 @@
             "worldnews",
             "dubai"
           ],
-          "reddit_query": "shortage supply stockpile panic supermarket empty shelves",
-          "gdelt_query": "shortage supply shortage stockpiling supermarket panic"
+          "reddit_query": "shortage supply stockpile panic supermarket empty shelves"
         },
         "panic_selling": {
           "label": "Panic Selling",
@@ -211,8 +196,7 @@
             "investing",
             "saudiarabia"
           ],
-          "reddit_query": "market crash selloff Tadawul DFM stocks plunge lose",
-          "gdelt_query": "stock market crash selloff exchange decline investors"
+          "reddit_query": "market crash selloff Tadawul DFM stocks plunge lose"
         }
       }
     },
@@ -231,8 +215,7 @@
             "saudiarabia",
             "food"
           ],
-          "reddit_query": "Talabat HungerStation Deliveroo Careem food order delivery",
-          "gdelt_query": "food delivery Talabat HungerStation app restaurant order"
+          "reddit_query": "Talabat HungerStation Deliveroo Careem food order delivery"
         },
         "online_shopping": {
           "label": "Online Shopping",
@@ -243,8 +226,7 @@
             "saudiarabia",
             "onlineshopping"
           ],
-          "reddit_query": "online shopping Noon Namshi Ounass Amazon delivery order",
-          "gdelt_query": "ecommerce online retail Noon Amazon delivery growth"
+          "reddit_query": "online shopping Noon Namshi Ounass Amazon delivery order"
         },
         "home_improvement": {
           "label": "Home & Nesting",
@@ -255,8 +237,7 @@
             "HomeImprovement",
             "malelivingspace"
           ],
-          "reddit_query": "home renovation IKEA furniture interior apartment nesting",
-          "gdelt_query": "home improvement renovation housing property interior"
+          "reddit_query": "home renovation IKEA furniture interior apartment nesting"
         },
         "travel": {
           "label": "Travel & Escape",
@@ -267,8 +248,7 @@
             "solotravel",
             "saudiarabia"
           ],
-          "reddit_query": "travel holiday visa tourism flight hotel vacation escape",
-          "gdelt_query": "tourism travel visa holiday flight hotel destination"
+          "reddit_query": "travel holiday visa tourism flight hotel vacation escape"
         }
       }
     },
@@ -287,8 +267,7 @@
             "dubai",
             "anxiety"
           ],
-          "reddit_query": "mental health anxiety stress burnout depression loneliness",
-          "gdelt_query": "mental health wellbeing anxiety stress burnout awareness"
+          "reddit_query": "mental health anxiety stress burnout depression loneliness"
         },
         "meditation": {
           "label": "Meditation & Mindfulness",
@@ -299,8 +278,7 @@
             "Mindfulness",
             "dubai"
           ],
-          "reddit_query": "meditation mindfulness calm breathing yoga wellbeing",
-          "gdelt_query": "meditation mindfulness wellness calm spiritual practice"
+          "reddit_query": "meditation mindfulness calm breathing yoga wellbeing"
         },
         "fitness": {
           "label": "Fitness & Exercise",
@@ -311,8 +289,7 @@
             "fitness",
             "xxfitness"
           ],
-          "reddit_query": "gym fitness workout CrossFit marathon running health UAE",
-          "gdelt_query": "fitness gym workout marathon exercise health wellness"
+          "reddit_query": "gym fitness workout CrossFit marathon running health UAE"
         },
         "sleep": {
           "label": "Sleep",
@@ -323,8 +300,7 @@
             "insomnia",
             "dubai"
           ],
-          "reddit_query": "sleep insomnia rest tired exhausted trouble sleeping",
-          "gdelt_query": "sleep disorder insomnia fatigue health rest wellbeing"
+          "reddit_query": "sleep insomnia rest tired exhausted trouble sleeping"
         },
         "therapy": {
           "label": "Therapy & Counselling",
@@ -335,8 +311,7 @@
             "mentalhealth",
             "dubai"
           ],
-          "reddit_query": "therapy counselling psychologist mental support help",
-          "gdelt_query": "therapy counselling mental health support psychologist"
+          "reddit_query": "therapy counselling psychologist mental support help"
         }
       }
     },
@@ -355,8 +330,7 @@
             "islam",
             "dubai"
           ],
-          "reddit_query": "donation charity aid relief Gaza Yemen fund zakat",
-          "gdelt_query": "humanitarian aid donation charity relief Gaza Yemen"
+          "reddit_query": "donation charity aid relief Gaza Yemen fund zakat"
         },
         "volunteering": {
           "label": "Volunteering",
@@ -367,8 +341,7 @@
             "dubai",
             "jordan"
           ],
-          "reddit_query": "volunteer community service helping support grassroots",
-          "gdelt_query": "volunteer community service civic initiative programme"
+          "reddit_query": "volunteer community service helping support grassroots"
         },
         "community": {
           "label": "Community Events",
@@ -379,12 +352,11 @@
             "saudiarabia",
             "ArabianPeninsula"
           ],
-          "reddit_query": "community event gathering festival National Day neighbourhood",
-          "gdelt_query": "community event festival cultural gathering civic"
+          "reddit_query": "community event gathering festival National Day neighbourhood"
         }
       }
     }
   },
   "last_updated": "2026-03-27T00:00:00Z",
-  "updated_by": "keyword_v2_mena_optimised"
+  "updated_by": "gdelt_removed"
 }

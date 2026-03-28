@@ -4,12 +4,10 @@ Crisis Pulse — Multi-Source Data Collector v3
 Sources:
   1. Reddit           — per-signal post volume, public JSON, no key
   2. Google Trends RSS — per-market trending topics, crisis/sport split
-  3. GDELT v2 DOC API  — per-signal article volume + tone, MENA geo-filtered, no key
   4. Google News RSS   — per-signal MENA-site article count, no key
   5. ACLED             — conflict event intensity per MENA country, free researcher key
   6. Twitch            — global live gaming viewership
 
-GDELT replaces NewsAPI (no rate cap, covers Arabic-language MENA sources).
 Google News RSS replaces Guardian (MENA outlets, no paywall, no geo-blindspot).
 ACLED is a new dedicated conflict_intensity signal per market.
 
@@ -85,21 +83,6 @@ MARKET_GEO_TERMS = {
 }
 
 # GDELT plain OR syntax
-MARKET_GDELT_GEO = {
-    "UAE":          "UAE Dubai Emirates",
-    "Saudi Arabia": "\"Saudi Arabia\" Riyadh Jeddah KSA",
-    "Kuwait":       "Kuwait",
-    "Qatar":        "Qatar Doha",
-    "Bahrain":      "Bahrain Manama",
-    "Oman":         "Oman Muscat",
-    "Lebanon":      "Lebanon Beirut",
-    "Jordan":       "Jordan Amman",
-    "Iraq":         "Iraq Baghdad Basra",
-    "Syria":        "Syria Damascus Aleppo",
-    "Egypt":        "Egypt Cairo Alexandria",
-    "Yemen":        "Yemen Sanaa Aden Houthi",
-    "Israel":       "Israel Tel Aviv Jerusalem",
-}
 
 # MENA news sites for Google News RSS proxy
 MENA_RSS_SITES = [
@@ -155,7 +138,6 @@ HISTORY_PATH     = BASE_PATH / "public" / "pulse_history.json"
 CONFIG_PATH      = BASE_PATH / "public" / "signals_config.json"
 CHECKPOINT_PATH  = BASE_PATH / "public" / "backfill_checkpoint.json"
 
-GDELT_BASE     = "https://api.gdeltproject.org/api/v2/doc/doc"
 GNEWS_BASE     = "https://news.google.com/rss/search"
 
 
@@ -225,7 +207,7 @@ def load_checkpoint() -> dict:
             return d
     except:
         pass
-    return {"completed": [], "reddit": {}, "gdelt": {}, "acled": {}}
+    return {"completed": [], "reddit": {}, "acled": {}}
 
 def save_checkpoint(cp: dict):
     CHECKPOINT_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -472,188 +454,7 @@ def fetch_rss(geo: str) -> dict:
 # Retry logic: 429 and empty responses are retried up to 3x with backoff.
 # The 5s sleep covers the rate limit; retries add extra spacing.
 
-GDELT_RETRY   = 4
-GDELT_SLEEP   = 7.0    # comfortably over 5s rate limit
-GDELT_BACKOFF = 20.0   # extra sleep on 429 or timeout
-GDELT_ILLEGAL = str.maketrans({"-": " ", "/": " ", chr(34): "", "(": "", ")": "", "'": ""})
-
-# GDELT is only run for the 6 highest-value consumer-signal markets.
-# Syria/Yemen/Iraq/Bahrain/Oman are covered by ACLED and Trends RSS instead.
-# This keeps the daily run well under the 90-min GitHub Actions timeout.
-GDELT_MARKETS = ["UAE", "Saudi Arabia", "Egypt", "Jordan", "Lebanon", "Iraq", "Israel"]
-
-def gdelt_clean(query: str) -> str:
-    """Strip illegal characters and normalise whitespace for GDELT queries."""
-    return " ".join(query.translate(GDELT_ILLEGAL).split())
-
-
-def _gdelt_get(params: dict) -> requests.Response | None:
-    """
-    Single GDELT request with rate-limit sleep, retry on 429/empty, and
-    content validation before returning. Returns None on all failures.
-    """
-    for attempt in range(GDELT_RETRY):
-        time.sleep(GDELT_SLEEP)
-        r = safe_get(GDELT_BASE, params=params)
-        if r is None:
-            log.warning(f"  GDELT attempt {attempt+1} timeout")
-            time.sleep(GDELT_BACKOFF)
-            continue
-        if r.status_code == 429:
-            log.warning(f"  GDELT 429 rate-limit — waiting {GDELT_BACKOFF}s")
-            time.sleep(GDELT_BACKOFF)
-            continue
-        if r.status_code != 200:
-            log.warning(f"  GDELT {r.status_code}")
-            continue
-        # Guard against non-JSON rate-limit text ("Please limit requests...")
-        if not r.text.strip().startswith("{"):
-            log.warning(f"  GDELT non-JSON response (attempt {attempt+1}): {r.text[:60]}")
-            time.sleep(GDELT_BACKOFF)
-            continue
-        return r
-    return None
-
-
-def fetch_gdelt_signal(signal_query: str, market: str, timespan: str = "24h") -> dict:
-    """
-    Returns { count: int, avg_tone: float } for a signal+market pair.
-    """
-    geo   = MARKET_GDELT_GEO.get(market, market)
-    # GDELT only allows parens around multi-term OR groups, not single words
-    # GDELT only allows parens around OR groups — plain space = AND.
-    # Cap keywords to avoid query-too-long rejections.
-    sig_terms = " ".join(gdelt_clean(signal_query).split()[:5])
-    geo_terms = " ".join(gdelt_clean(geo).split()[:3])
-    query     = f"{sig_terms} {geo_terms}"
-    params = {
-        "query":      query,
-        "mode":       "artlist",
-        "timespan":   timespan,
-        "maxrecords": 250,
-        "format":     "json",
-        "sourcelang": "english",
-    }
-    r = _gdelt_get(params)
-    if not r:
-        return {"count": 0, "avg_tone": 0.0}
-    try:
-        articles = r.json().get("articles") or []
-        tones    = [float(a["tone"]) for a in articles if a.get("tone") not in (None, "")]
-        return {
-            "count":    len(articles),
-            "avg_tone": round(sum(tones) / len(tones), 2) if tones else 0.0,
-        }
-    except Exception as e:
-        log.warning(f"  GDELT parse error: {e}")
-        return {"count": 0, "avg_tone": 0.0}
-
-
-def fetch_gdelt_all(signals: dict, timespan: str = "24h") -> dict:
-    """
-    Returns { market: { sig_key: { count, avg_tone } } }
-    Runtime: ~signals x markets x 6s. With 12 markets x 28 signals ≈ ~34 min.
-    """
-    log.info(f"\nGDELT ({timespan} window, {len(GDELT_MARKETS)} markets)...")
-    result = {m: {} for m in MARKETS.values()}  # full dict, non-GDELT markets stay empty
-    ok     = False
-
-    for market_name in GDELT_MARKETS:
-        for sig_key, cfg in signals.items():
-            query = cfg.get("gdelt_query") or cfg.get("news", sig_key)
-            data  = fetch_gdelt_signal(query, market_name, timespan)
-            result[market_name][sig_key] = data
-            if data["count"]:
-                ok = True
-                log.info(f"  OK {market_name}/{sig_key}: {data['count']} articles tone={data['avg_tone']}")
-            else:
-                log.info(f"  -- {market_name}/{sig_key}")
-
-    return result if ok else {}
-
-
-def fetch_gdelt_backfill(signals: dict, days: int = 30) -> dict:
-    """
-    Uses timelinevol mode to get hourly volume per signal x market, aggregated to daily.
-    Returns { market: { sig_key: { 'YYYYMMDD': count } } }
-    Date format from GDELT timelinevol: "20260320T140000Z" (ISO compact, hourly).
-    """
-    log.info(f"\nGDELT backfill ({days} days, {len(GDELT_MARKETS)} markets)...")
-    result   = {m: {s: {} for s in signals} for m in MARKETS.values()}
-    timespan = f"{days}d"
-
-    # Support resuming a partial GDELT backfill
-    gdelt_partial_path = CHECKPOINT_PATH.parent / "backfill_gdelt_partial.json"
-    try:
-        if gdelt_partial_path.exists():
-            saved = json.loads(gdelt_partial_path.read_text())
-            for m, sigs in saved.items():
-                if m in result:
-                    result[m].update(sigs)
-            done_pairs = sum(len(v) for v in saved.values())
-            log.info(f"  Resuming GDELT backfill ({done_pairs} signal/market pairs already done)")
-    except:
-        pass
-
-    total_pairs = len(GDELT_MARKETS) * len(signals)
-    pair_num    = 0
-
-    for market_name in GDELT_MARKETS:
-        done_in_market = sum(1 for s in signals if result[market_name].get(s))
-        log.info(f"\n  [{elapsed()}] GDELT market: {market_name} "
-                 f"({done_in_market}/{len(signals)} signals already done)")
-
-        for sig_key, cfg in signals.items():
-            pair_num += 1
-            if result[market_name].get(sig_key):
-                log.info(f"  skip {market_name}/{sig_key} (from checkpoint)")
-                continue  # already loaded from partial checkpoint
-
-            heartbeat(f"GDELT {pair_num}/{total_pairs} — {market_name}/{sig_key}")
-
-            query     = cfg.get("gdelt_query") or cfg.get("news", sig_key)
-            geo       = MARKET_GDELT_GEO.get(market_name, market_name)
-            sig_terms = " ".join(gdelt_clean(query).split()[:5])
-            geo_terms = " ".join(gdelt_clean(geo).split()[:3])
-            params    = {
-                "query":    f"{sig_terms} {geo_terms}",
-                "mode":     "timelinevol",
-                "timespan": timespan,
-                "format":   "json",
-            }
-            r = _gdelt_get(params)
-            if not r:
-                log.warning(f"  GDELT gave up on {market_name}/{sig_key} after retries — skipping")
-                continue
-            try:
-                tl = r.json().get("timeline", [])
-                if not tl or not tl[0].get("data"):
-                    log.info(f"  -- {market_name}/{sig_key}: no data")
-                    continue
-                daily: dict = {}
-                for entry in tl[0]["data"]:
-                    try:
-                        dt      = datetime.strptime(entry["date"], "%Y%m%dT%H%M%SZ")
-                        day_key = dt.strftime("%Y%m%d")
-                        daily[day_key] = daily.get(day_key, 0) + entry.get("value", 0)
-                    except:
-                        pass
-                result[market_name][sig_key] = {k: round(v) for k, v in daily.items()}
-                if daily:
-                    log.info(f"  OK {market_name}/{sig_key}: {len(daily)} days [{elapsed()}]")
-                    gdelt_partial_path.write_text(json.dumps(result))
-                    log.info(f"  written partial checkpoint ({pair_num}/{total_pairs} pairs done)")
-            except Exception as e:
-                log.warning(f"  GDELT backfill {market_name}/{sig_key}: {e}")
-
-    try:
-        gdelt_partial_path.unlink(missing_ok=True)
-    except:
-        pass
-
-    return result
-
-
+# GDELT removed — replaced by Google News RSS for news volume
 # ── Source 4: Google News RSS (MENA sites) ────────────────────────────────────
 #
 # Replaces Guardian. Uses news.google.com/rss/search to proxy MENA news outlets
@@ -719,7 +520,7 @@ def fetch_gnews_all(signals: dict, days: int = 7) -> dict:
 
     for market_name in MARKETS.values():
         for sig_key, cfg in signals.items():
-            query = cfg.get("gdelt_query") or cfg.get("news", sig_key)
+            query = cfg.get("news", sig_key)
             data  = fetch_gnews_signal(query, market_name, days)
             result[market_name][sig_key] = data
             if data["count"]:
@@ -929,17 +730,6 @@ def backfill(signals: dict, acled_email: str, acled_password: str) -> list:
         save_checkpoint(cp)
         log.info(f"  Reddit complete [{elapsed()}] — checkpoint saved")
 
-    # GDELT: daily timeline per signal per market
-    if "gdelt" in cp["completed"]:
-        log.info("  GDELT: loaded from checkpoint — skipping fetch")
-        gdelt_range = cp["gdelt"]
-    else:
-        heartbeat("Starting GDELT backfill (this is the long one)")
-        gdelt_range = fetch_gdelt_backfill(signals, days=BACKFILL_DAYS)
-        cp["gdelt"] = gdelt_range
-        cp["completed"].append("gdelt")
-        save_checkpoint(cp)
-        log.info(f"  GDELT complete [{elapsed()}] — checkpoint saved")
 
     # ACLED: single 30-day pull per market
     acled_30d = {}
@@ -958,15 +748,6 @@ def backfill(signals: dict, acled_email: str, acled_password: str) -> list:
             save_checkpoint(cp)
             log.info("  ACLED: checkpoint saved")
 
-    # Normalise GDELT counts across all signals/markets/days
-    all_gdelt_counts = [
-        v
-        for m_dict in gdelt_range.values()
-        for s_dict in m_dict.values()
-        for v in s_dict.values()
-    ]
-    gdelt_max = max(all_gdelt_counts, default=1) or 1
-
     records = []
     for days_ago in range(BACKFILL_DAYS, 0, -1):
         day     = now - timedelta(days=days_ago)
@@ -981,20 +762,10 @@ def backfill(signals: dict, acled_email: str, acled_password: str) -> list:
             record["markets"][market_name] = {}
             for sig_key in signals:
                 reddit_score = reddit_range.get(sig_key, {}).get(day_key)
-                gdelt_count  = gdelt_range.get(market_name, {}).get(sig_key, {}).get(day_key, 0)
-                gdelt_norm   = round(gdelt_count / gdelt_max * 100, 1)
-                # Blend Reddit (60%) + GDELT (40%)
-                if reddit_score is not None:
-                    record["markets"][market_name][sig_key] = round(reddit_score * 0.6 + gdelt_norm * 0.4, 1)
-                else:
-                    record["markets"][market_name][sig_key] = gdelt_norm or None
+                record["markets"][market_name][sig_key] = reddit_score
 
         for sig_key in signals:
-            gdelt_avg = sum(
-                gdelt_range.get(m, {}).get(sig_key, {}).get(day_key, 0)
-                for m in MARKETS.values()
-            ) / len(MARKETS)
-            record["news_volumes"][sig_key] = round(gdelt_avg)
+            record["news_volumes"][sig_key] = 0
 
         # ACLED intensity is the same across the 30-day window (no daily bucketing)
         for market_name in MARKETS.values():
@@ -1016,7 +787,6 @@ def backfill(signals: dict, acled_email: str, acled_password: str) -> list:
 def append_today(history: list, pulse: dict, signals: dict) -> list:
     today    = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     history  = [r for r in history if r.get("date") != today]
-    gdelt    = pulse.get("news_volumes", {}).get("gdelt", {})
     gnews    = pulse.get("news_volumes", {}).get("gnews", {})
     reddit   = pulse.get("global", {}).get("reddit", {})
     conflict = pulse.get("conflict", {})
@@ -1028,33 +798,18 @@ def append_today(history: list, pulse: dict, signals: dict) -> list:
     }
 
     # Compute per-market signal scores: Reddit (60%) + GDELT count norm (40%)
-    all_gdelt_counts = [
-        gdelt.get(m, {}).get(s, {}).get("count", 0)
-        for m in MARKETS.values() for s in signals
-    ]
-    gdelt_max = max(all_gdelt_counts, default=1) or 1
-
     for market_name in MARKETS.values():
         snap["markets"][market_name] = {}
         snap["news_volumes_by_market"][market_name] = {}
         for sig_key in signals:
             reddit_score = reddit.get(sig_key)
-            gdelt_count  = gdelt.get(market_name, {}).get(sig_key, {}).get("count", 0)
             gnews_count  = gnews.get(market_name, {}).get(sig_key, {}).get("count", 0)
-            total_news   = gdelt_count + gnews_count
-            gdelt_norm   = round(gdelt_count / gdelt_max * 100, 1)
-
-            snap["news_volumes_by_market"][market_name][sig_key] = total_news
-
-            if reddit_score is not None:
-                snap["markets"][market_name][sig_key] = round(reddit_score * 0.6 + gdelt_norm * 0.4, 1)
-            else:
-                snap["markets"][market_name][sig_key] = gdelt_norm or None
+            snap["news_volumes_by_market"][market_name][sig_key] = gnews_count
+            snap["markets"][market_name][sig_key] = reddit_score if reddit_score is not None else None
 
     # Global news volume rollup
     for sig_key in signals:
         snap["news_volumes"][sig_key] = sum(
-            gdelt.get(m, {}).get(sig_key, {}).get("count", 0) +
             gnews.get(m, {}).get(sig_key, {}).get("count", 0)
             for m in MARKETS.values()
         )
@@ -1149,15 +904,6 @@ def collect():
     else:
         result["sources_failed"].append("google_rss")
 
-    # ── GDELT ─────────────────────────────────────────────────────────────────
-    heartbeat("Fetching today's GDELT signals")
-    gdelt_vols = fetch_gdelt_all(signals, timespan="24h")
-    if gdelt_vols:
-        result["news_volumes"]["gdelt"] = gdelt_vols
-        result["sources_live"].append("gdelt")
-    else:
-        result["sources_failed"].append("gdelt")
-
     # ── Google News RSS (MENA outlets) ────────────────────────────────────────
     heartbeat("Fetching Google News RSS")
     gnews_vols = fetch_gnews_all(signals, days=7)
@@ -1220,7 +966,6 @@ def collect():
 
 def generate_market_summary(market: str, data: dict, config: dict) -> str:
     categories = config.get("categories", {})
-    gdelt_raw  = data.get("news_volumes", {}).get("gdelt", {})
     gnews_raw  = data.get("news_volumes", {}).get("gnews", {})
     reddit_raw = data.get("global", {}).get("reddit", {})
     rss        = data.get("global", {}).get("rss_trends", {}).get(market, {})
@@ -1230,10 +975,9 @@ def generate_market_summary(market: str, data: dict, config: dict) -> str:
         if cat.get("ramadan_only"):
             continue
         for sk in cat.get("signals", {}).keys():
-            gdelt  = gdelt_raw.get(market, {}).get(sk, {}).get("count", 0)
             gnews  = gnews_raw.get(market, {}).get(sk, {}).get("count", 0)
             rd     = reddit_raw.get(sk, 0) if reddit_raw else 0
-            all_signals[sk] = {"score": gdelt + gnews + rd, "cat": ck, "cat_label": cat["label"]}
+            all_signals[sk] = {"score": gnews + rd, "cat": ck, "cat_label": cat["label"]}
 
     ranked      = sorted(all_signals.items(), key=lambda x: x[1]["score"], reverse=True)
     top2        = ranked[:2]
