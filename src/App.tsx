@@ -178,7 +178,7 @@ function SignalRow({sigKey,sig,markets,activeMarket,dates,newsapi,guardian,newsa
       <div className="signal-row-right">
         <div className="signal-val">{Math.round(marketScore ?? normVol)}</div>
         <div className={`signal-pct ${pct>0?"up":pct<0?"down":"flat"}`}
-          title={`vs market avg ${Math.round(avgVol)} articles`}>
+          title={`vs market avg ${Math.round(avgScore)}`}>
           {pct>0?"▲":pct<0?"▼":"→"}{Math.abs(pct)}%
         </div>
         <div className="signal-news">{fmt(newsVol)} art.</div>
