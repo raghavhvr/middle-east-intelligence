@@ -2,7 +2,7 @@ name: Daily Pulse Refresh
 
 on:
   schedule:
-    - cron: '0 2 * * *'   # 02:00 UTC = 06:00 GST daily
+    - cron: '0 5 * * *'   # 05:00 UTC = 09:00 GST daily
   workflow_dispatch:       # manual trigger from Actions tab
 
 jobs:

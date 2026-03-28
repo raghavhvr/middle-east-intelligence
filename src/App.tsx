@@ -139,9 +139,9 @@ function CategoryCard({
 }
 
 // ── Signal row (expandable detail) ────────────────────────────────────────────
-function SignalRow({sigKey,sig,markets,activeMarket,dates,newsapi,guardian,newsapiAllMarkets}:{
+function SignalRow({sigKey,sig,markets,activeMarket,dates,newsapi,guardian,newsapiAllMarkets,history}:{
   sigKey:string,sig:any,markets:any,activeMarket:string,
-  dates:string[],newsapi:any,guardian:any,newsapiAllMarkets:any
+  dates:string[],newsapi:any,guardian:any,newsapiAllMarkets:any,history:any[]
 }){
   // New schema: market score is a scalar float (Reddit-based, 0-100)
   const marketScore = (()=>{ const v=markets[activeMarket]?.[sigKey]; return (v!=null&&typeof v==="number")?v:null; })();
@@ -739,7 +739,7 @@ export default function App(){
                 activeMarket={activeMarket}
                 isActive={activeCat===ck}
                 onClick={()=>setActiveCat(activeCat===ck?null:ck)}
-                newsapi={newsapi} guardian={guardian} rss={rss} markets={markets} />
+                newsapi={newsapi} guardian={guardian} rss={rss} />
             ))}
           </div>
         </div>
@@ -770,7 +770,7 @@ export default function App(){
                   <SignalRow key={sk} sigKey={sk} sig={flatSigs[sk]}
                     markets={markets} activeMarket={activeMarket}
                     dates={dates} newsapi={newsapi} guardian={guardian}
-                    newsapiAllMarkets={newsapiByMarket} />
+                    newsapiAllMarkets={newsapiByMarket} history={history} />
                 ))}
               </div>
               <div className="dp-chart-panel">
