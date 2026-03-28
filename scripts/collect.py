@@ -811,24 +811,46 @@ def append_today(history: list, pulse: dict, signals: dict) -> list:
     gnews    = pulse.get("news_volumes", {}).get("gnews", {})
     reddit   = pulse.get("global", {}).get("reddit", {})
     conflict = pulse.get("conflict", {})
+    rss      = pulse.get("global", {}).get("rss_trends", {})
 
     snap = {
-        "date": today, "markets": {}, "news_volumes": {},
-        "news_volumes_by_market": {}, "conflict": conflict,
+        "date":    today,
+        "markets": {},
+        "news_volumes": {},
+        "news_volumes_by_market": {},
+        "conflict": conflict,
+        "rss_trends": {
+            m: {
+                "crisis_pct":              rss.get(m, {}).get("crisis_pct", 0),
+                "sport_entertainment_pct": rss.get(m, {}).get("sport_entertainment_pct", 0),
+            }
+            for m in MARKETS.values()
+        },
         "twitch_viewers": pulse.get("global", {}).get("twitch", {}).get("total_viewers", 0),
     }
 
-    # Compute per-market signal scores: Reddit (60%) + GDELT count norm (40%)
+    # Per-signal max gnews count across all markets for normalisation
+    gnews_max: dict = {}
+    for sig_key in signals:
+        gnews_max[sig_key] = max(
+            (gnews.get(m, {}).get(sig_key, {}).get("count", 0) for m in MARKETS.values()),
+            default=1
+        ) or 1
+
+    # Per-market scores: Reddit baseline (global, 60%) + gnews count (market-specific, 40%)
     for market_name in MARKETS.values():
         snap["markets"][market_name] = {}
         snap["news_volumes_by_market"][market_name] = {}
         for sig_key in signals:
             reddit_score = reddit.get(sig_key)
             gnews_count  = gnews.get(market_name, {}).get(sig_key, {}).get("count", 0)
+            gnews_norm   = round((gnews_count / gnews_max[sig_key]) * 100, 1)
             snap["news_volumes_by_market"][market_name][sig_key] = gnews_count
-            snap["markets"][market_name][sig_key] = reddit_score if reddit_score is not None else None
+            if reddit_score is not None:
+                snap["markets"][market_name][sig_key] = round(reddit_score * 0.6 + gnews_norm * 0.4, 1)
+            else:
+                snap["markets"][market_name][sig_key] = gnews_norm if gnews_count else None
 
-    # Global news volume rollup
     for sig_key in signals:
         snap["news_volumes"][sig_key] = sum(
             gnews.get(m, {}).get(sig_key, {}).get("count", 0)
