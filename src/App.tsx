@@ -801,11 +801,21 @@ export default function App(){
                   const histData = history.slice(-30).map((rec:any)=>({
                     date: rec.date?.slice(5),
                     ...Object.fromEntries(allMkts.map(m=>{
+                      // Use blended market score (Reddit 60% + gnews 40%) from history
                       const vals = activeSigKeys
                         .map((s:string)=>{ const v=rec.markets?.[m]?.[s]; return (v!=null&&typeof v==="number")?v:null; })
                         .filter((v:any)=>v!=null) as number[];
-                      const avg = vals.length ? Math.round(vals.reduce((a:number,b:number)=>a+b,0)/vals.length) : null;
-                      return [m, avg];
+                      if(!vals.length) return [m, null];
+                      const base = Math.round(vals.reduce((a:number,b:number)=>a+b,0)/vals.length);
+                      // Apply stored RSS weights if available to further differentiate
+                      const recRss = rec.rss_trends?.[m];
+                      if(recRss){
+                        const sportW  = (recRss.sport_entertainment_pct||50)/50;
+                        const crisisW = (recRss.crisis_pct||50)/50;
+                        const w = catType==="sport" ? sportW : catType==="crisis" ? crisisW : (sportW+crisisW)/2;
+                        return [m, Math.min(99, Math.round(base * Math.max(0.5, Math.min(1.5, w))))];
+                      }
+                      return [m, base];
                     }))
                   }));
                   return (
