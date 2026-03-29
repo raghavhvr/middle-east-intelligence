@@ -121,7 +121,7 @@ function CategoryCard({
               avg {baselineAvg}
             </div>
           )}
-          <div className={`cat-trend ${trend>0?"up":trend<0?"down":"flat"}`}>
+          <div className={`cat-trend ${trend>0?"up":trend<0?"down":"flat"}`} title="Change vs oldest signal in sparkline (7-day movement)">
             {trend>0?"▲":trend<0?"▼":"→"} {Math.abs(Math.round(trend))}
           </div>
         </div>
@@ -131,7 +131,7 @@ function CategoryCard({
         <div style={{marginBottom:8}}>
           <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
             <span style={{fontFamily:"var(--sans)",fontSize:10,fontWeight:600,color:"rgba(255,255,255,0.5)"}}>
-              {catKey==="crisis_awareness"?"CRISIS SIGNAL":catKey==="escapism"?"SPORT/ENT SIGNAL":"RSS SIGNAL"} · {activeMarket}
+              <span title="% of today's Google Trends topics that fall into this category for this market">{catKey==="crisis_awareness"?"CRISIS SIGNAL":catKey==="escapism"?"SPORT/ENT SIGNAL":"RSS SIGNAL"} · {activeMarket}</span>
             </span>
             <span style={{fontFamily:"var(--sans)",fontSize:10,fontWeight:700,color:cat.color}}>{Math.min(100,rssSignal)}%</span>
           </div>
@@ -194,19 +194,19 @@ function SignalRow({sigKey,sig,markets,activeMarket,dates,newsapi,guardian,newsa
         </ResponsiveContainer>
       </div>
       <div className="signal-row-right">
-        <div className="signal-val">{Math.round(marketScore ?? normVol)}</div>
+        <div className="signal-val" title="Signal index 0–99. Reddit post volume (60%) + geo-filtered news article count (40%), normalised across all markets.">{Math.round(marketScore ?? normVol)}</div>
         <div className={`signal-pct ${pct>0?"up":pct<0?"down":"flat"}`}
           title="Week-on-week change">
           {pct>0?"▲":pct<0?"▼":"→"}{Math.abs(pct)}%
         </div>
-        <div className="signal-news">{newsVol>0?`${fmt(newsVol)} art.`:"—"}</div>
+        <div className="signal-news" title="Google News RSS article count for this signal in this market today">{newsVol>0?`${fmt(newsVol)} art.`:"—"}</div>
         <div style={{fontSize:10,color:"var(--muted)",width:12}}>{expanded?"▲":"▼"}</div>
       </div>
     </div>
     {expanded && (
       <div style={{padding:"12px 0 16px",borderBottom:"1px solid var(--border)"}}>
         <div style={{fontSize:10,color:"var(--muted)",marginBottom:8,letterSpacing:1,fontWeight:600}}>
-          {sig.label.toUpperCase()} · {activeMarket} · {history.length}-DAY TREND
+          {sig.label.toUpperCase()} · {activeMarket} · {history.length}-DAY TREND — Reddit+News blended score (0–99) per day
         </div>
         <ResponsiveContainer width="100%" height={140}>
           <LineChart data={chartData} margin={{top:4,right:8,bottom:0,left:0}}>
@@ -797,14 +797,20 @@ export default function App(){
         </div>
         <div className="hdr-right">
           <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-            {["reddit","google_rss","google_news_rss","acled","twitch"].map(s=>(
-              <span key={s} className={`chip ${sources.includes(s)?"live":"dead"}`}>
+            {[
+              {id:"reddit",tip:"Reddit post volume via Arctic Shift archive — global signal baseline"},
+              {id:"google_rss",tip:"Google Trends RSS — per-market trending topics with crisis/sport classification"},
+              {id:"google_news_rss",tip:"Google News RSS — MENA outlet article counts per signal per market"},
+              {id:"acled",tip:"Armed Conflict Location & Event Data — conflict intensity per country"},
+              {id:"twitch",tip:"Twitch API — live gaming viewership snapshot"},
+            ].map(({id:s,tip})=>(
+              <span key={s} className={`chip ${sources.includes(s)?"live":"dead"}`} title={tip}>
                 {s.replace(/_/g," ")}
               </span>
             ))}
           </div>
           <span className="ts">{timeAgoStr}</span>
-          <button className="sp-trigger" onClick={exportSummary} title="Copy market summary to clipboard">⬇ Export</button>
+          <button className="sp-trigger" onClick={exportSummary} title="Copy a plain-text summary of today's scores for the selected market to your clipboard">⬇ Export</button>
           <button className="sp-trigger" onClick={()=>setShowSettings(true)}>⚙ Signals</button>
         </div>
       </header>
@@ -858,9 +864,9 @@ export default function App(){
                 <div style={{display:"flex",gap:20,marginBottom:12,paddingBottom:10,borderBottom:"1px solid var(--border)"}}>
                   <span style={{fontFamily:"var(--sans)",fontSize:10,fontWeight:600,color:"rgba(255,255,255,0.5)",width:160}}>SIGNAL</span>
                   <span style={{fontFamily:"var(--sans)",fontSize:10,fontWeight:600,color:"rgba(255,255,255,0.5)",flex:1}}>7-DAY TREND</span>
-                  <span style={{fontFamily:"var(--sans)",fontSize:10,fontWeight:600,color:"rgba(255,255,255,0.5)",width:30,textAlign:"right"}}>IDX</span>
-                  <span style={{fontFamily:"var(--sans)",fontSize:10,fontWeight:600,color:"rgba(255,255,255,0.5)",width:40,textAlign:"right"}}>WoW</span>
-                  <span style={{fontFamily:"var(--sans)",fontSize:10,fontWeight:600,color:"rgba(255,255,255,0.5)",width:55,textAlign:"right"}}>NEWS</span>
+                  <span style={{fontFamily:"var(--sans)",fontSize:10,fontWeight:600,color:"rgba(255,255,255,0.5)",width:30,textAlign:"right"}} title="Signal index 0–99. Reddit (60%) + News volume (40%)">IDX</span>
+                  <span style={{fontFamily:"var(--sans)",fontSize:10,fontWeight:600,color:"rgba(255,255,255,0.5)",width:40,textAlign:"right"}} title="Week-on-week % change in signal score vs 7 days ago">WoW</span>
+                  <span style={{fontFamily:"var(--sans)",fontSize:10,fontWeight:600,color:"rgba(255,255,255,0.5)",width:55,textAlign:"right"}} title="Number of Google News RSS articles mentioning this signal in this market today">NEWS</span>
                 </div>
                 {activeSigKeys.map(sk=>(
                   <SignalRow key={sk} sigKey={sk} sig={flatSigs[sk]}
@@ -874,7 +880,7 @@ export default function App(){
                   MARKET COMPARISON · {activeCatObj.label?.toUpperCase()}
                 </div>
                 <div style={{fontSize:10,color:"var(--muted)",marginBottom:14,fontStyle:"italic"}}>
-                  30-day avg signal index per market
+                  Average of all signals in this category per market. Blended: Reddit activity (60%) + geo-filtered news volume (40%), RSS-weighted.
                 </div>
                 {(()=>{
                   // Build per-market category average from history (last 30 days)
@@ -933,7 +939,7 @@ export default function App(){
 
         {/* ── Market Heatmap ── */}
         <div>
-          <div className="sec">Market Heatmap · Signal Intensity by Market & Category</div>
+          <div className="sec" title="Each cell = avg signal score for that market × category. Reddit (60%) + geo-filtered Google News (40%). Click any cell to drill into that market + category.">Market Heatmap · Signal Intensity by Market & Category</div>
           <div className="card" style={{overflowX:"auto",padding:"20px 20px 16px"}}>
             {/* Legend */}
             <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,justifyContent:"flex-end"}}>
@@ -1035,7 +1041,7 @@ export default function App(){
 
         {/* ── Trending Topics ── */}
         <div>
-          <div className="sec">Trending Topics · Google RSS · Today</div>
+          <div className="sec" title="Top trending search topics pulled from Google Trends RSS for each market today. Classified into Sport/Ent vs Crisis buckets using keyword matching.">Trending Topics · Google RSS · Today</div>
           <div className="topics-grid">
             {Object.entries(MARKET_FLAGS).map(([market,flag])=>{
               const r=rss[market]||{};
@@ -1054,8 +1060,8 @@ export default function App(){
                     <div style={{width:`${other}%`,background:"var(--border)",borderRadius:2}}/>
                   </div>
                   <div className="mood-labels">
-                    <span style={{color:"var(--cyan)"}}>◈ Sport/Ent {sport}%</span>
-                    <span style={{color:"var(--pink)"}}>◈ Crisis {crisis}%</span>
+                    <span style={{color:"var(--cyan)"}} title="% of today's trending topics classified as sport or entertainment">◈ Sport/Ent {sport}%</span>
+                    <span style={{color:"var(--pink)"}} title="% of today's trending topics classified as crisis, conflict or emergency">◈ Crisis {crisis}%</span>
                   </div>
                   {(r.top_topics||[]).slice(0,5).map((t:string,i:number)=>(
                     <div key={i} className="topic-item">
@@ -1071,8 +1077,8 @@ export default function App(){
         {/* ── Radar + Long-term ── */}
         <div className="analysis-grid">
           <div className="card">
-            <div className="card-title">Category Radar · {activeMarket}</div>
-            <div className="card-sub">Signal strength by category</div>
+            <div className="card-title" title="Radar showing relative signal strength across all 6 categories for the selected market. Each axis = avg score for that category, normalised 0–99.">Category Radar · {activeMarket}</div>
+            <div className="card-sub">Signal strength by category — Reddit + News blended, 0–99 scale</div>
             <ResponsiveContainer width="100%" height={260}>
               <RadarChart data={radarData} margin={{top:10,right:20,bottom:10,left:20}}>
                 <PolarGrid stroke="var(--border)" />
@@ -1086,8 +1092,8 @@ export default function App(){
           </div>
 
           <div className="card">
-            <div className="card-title">Long-term Category Trends · {activeMarket}</div>
-            <div className="card-sub">Daily avg signal index per category · 30-day view</div>
+            <div className="card-title" title="Daily average of all signal scores within each category for this market. Backfill uses weekly Reddit buckets with ±15% jitter — real daily data starts from first workflow run.">Long-term Category Trends · {activeMarket}</div>
+            <div className="card-sub">Daily avg signal index per category — Reddit (60%) + News (40%) blended</div>
             {history.length > 0 ? (
               <>
                 <div className="period-btns">
@@ -1139,7 +1145,7 @@ export default function App(){
               <div className="card">
                 <div className="twitch-row">
                   <div className="twitch-stat">
-                    <div className="twitch-num">{fmt(twitch.total_viewers||0)}</div>
+                    <div className="twitch-num" title="Total concurrent viewers across all live streams on Twitch at collection time (09:00 GST daily)">{fmt(twitch.total_viewers||0)}</div>
                     <div className="twitch-lbl">Live Viewers</div>
                   </div>
                   <div className="game-rows">
@@ -1148,7 +1154,7 @@ export default function App(){
                       const colors=["var(--cyan)","var(--purple)","var(--orange)","var(--green)","var(--muted)"];
                       return (
                         <div key={i} className="game-row">
-                          <div className="game-name">{g.name}</div>
+                          <div className="game-name" title={`${g.name}: ${fmt(g.viewers)} live viewers`}>{g.name}</div>
                           <div className="game-bar-bg">
                             <div className="game-bar-fg" style={{width:`${(g.viewers/max)*100}%`,background:colors[i]}}/>
                           </div>
