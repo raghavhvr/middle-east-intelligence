@@ -318,11 +318,26 @@ function SettingsPanel({config,onClose,onSave}:{config:any,onClose:()=>void,onSa
 
 // ── InfoTip ──────────────────────────────────────────────────────────────────
 function InfoTip({text}:{text:string}){
+  const [pos, setPos] = useState<{x:number,y:number}|null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  function show(){
+    if(!btnRef.current) return;
+    const r = btnRef.current.getBoundingClientRect();
+    setPos({x: r.left + r.width/2, y: r.top - 8});
+  }
   return (
-    <span className="info-tip">
-      <button className="info-tip-btn" onClick={e=>e.stopPropagation()}>?</button>
-      <span className="info-tip-box">{text}</span>
-    </span>
+    <>
+      <button ref={btnRef} className="info-tip-btn"
+        onMouseEnter={show} onMouseLeave={()=>setPos(null)}
+        onClick={e=>e.stopPropagation()}>?</button>
+      {pos && (
+        <div className="info-tip-portal" style={{
+          left: Math.min(pos.x, window.innerWidth - 290),
+          top: pos.y,
+          transform: "translateY(-100%)"
+        }}>{text}</div>
+      )}
+    </>
   );
 }
 
@@ -550,25 +565,21 @@ export default function App(){
 
 
         /* ── InfoTip ── */
-        .info-tip{position:relative;display:inline-flex;}
         .info-tip-btn{
           width:14px;height:14px;border-radius:50%;border:1px solid rgba(255,255,255,0.3);
           background:transparent;color:rgba(255,255,255,0.45);font-family:var(--sans);
           font-size:9px;font-weight:700;cursor:help;display:inline-flex;align-items:center;
-          justify-content:center;line-height:1;flex-shrink:0;transition:all .15s;
-          padding:0;
+          justify-content:center;line-height:1;flex-shrink:0;transition:all .15s;padding:0;
         }
         .info-tip-btn:hover{border-color:var(--cyan);color:var(--cyan);}
-        .info-tip-box{
-          display:none;position:absolute;bottom:calc(100% + 8px);left:50%;
-          transform:translateX(-50%);min-width:220px;max-width:300px;
-          background:#0c1e35;border:1px solid var(--border2);border-radius:5px;
-          padding:8px 12px;z-index:999;pointer-events:none;
+        .info-tip-portal{
+          position:fixed;z-index:9999;pointer-events:none;
+          background:#0c1e35;border:1px solid rgba(176,244,103,0.3);border-radius:5px;
+          padding:8px 12px;min-width:200px;max-width:280px;
           font-family:var(--sans);font-size:10px;font-weight:400;
-          color:rgba(255,255,255,0.75);line-height:1.6;white-space:normal;
-          box-shadow:0 4px 20px rgba(0,0,0,0.5);
+          color:rgba(255,255,255,0.8);line-height:1.6;white-space:normal;
+          box-shadow:0 4px 24px rgba(0,0,0,0.6);
         }
-        .info-tip:hover .info-tip-box{display:block;}
         /* ── Top bar wrapper (header + market nav stick together) ── */
         .top-bar{position:sticky;top:0;z-index:100;background:rgba(0,0,58,0.97);backdrop-filter:blur(20px);}
         /* ── Header ── */
