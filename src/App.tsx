@@ -113,17 +113,15 @@ function CategoryCard({
             {!hasRealData && <span style={{color:"var(--muted)",marginLeft:6,fontSize:8}}>· pending run</span>}
           </div>
         </div>
-        <div className="cat-score-wrap" data-tip="Score = Reddit activity (60%) +
-News volume (40%). Scale 0–99.">
+        <div className="cat-score-wrap" title="Score = Reddit (60%) + News (40%). Scale 0–99.">
           <div className="cat-score" style={{opacity:hasRealData?1:0.4,cursor:"help"}}>{displayScore}</div>
           {baselineAvg !== null && (
             <div style={{fontSize:9,color:"rgba(255,255,255,0.35)",fontFamily:"var(--sans)",fontWeight:500,marginTop:1}}
-              data-tip="30-day average score for this
-category in this market">
+              title="30-day average for this market">
               avg {baselineAvg}
             </div>
           )}
-          <div className={`cat-trend ${trend>0?"up":trend<0?"down":"flat"}`} data-tip="7-day movement: today vs 7 days ago">
+          <div className={`cat-trend ${trend>0?"up":trend<0?"down":"flat"}`} title="7-day movement">
             {trend>0?"▲":trend<0?"▼":"→"} {Math.abs(Math.round(trend))}
           </div>
         </div>
@@ -303,6 +301,17 @@ function SettingsPanel({config,onClose,onSave}:{config:any,onClose:()=>void,onSa
         </div>
       </div>
     </div>
+  );
+}
+
+
+// ── InfoTip ──────────────────────────────────────────────────────────────────
+function InfoTip({text}:{text:string}){
+  return (
+    <span className="info-tip">
+      <button className="info-tip-btn" onClick={e=>e.stopPropagation()}>?</button>
+      <span className="info-tip-box">{text}</span>
+    </span>
   );
 }
 
@@ -528,18 +537,27 @@ export default function App(){
             radial-gradient(ellipse at 50% 50%,rgba(84,101,255,0.04) 0%,transparent 70%);}
 
 
-        /* ── Custom tooltips (title attr works on interactive elements; use data-tip for divs) ── */
-        [data-tip]{position:relative;cursor:help;}
-        [data-tip]::after{
-          content:attr(data-tip);
-          position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);
-          background:#0a1628;border:1px solid var(--border2);color:rgba(255,255,255,0.8);
-          font-family:var(--sans);font-size:10px;font-weight:400;line-height:1.5;
-          padding:6px 10px;border-radius:4px;white-space:pre-wrap;max-width:280px;
-          text-align:center;z-index:999;pointer-events:none;
-          opacity:0;transition:opacity .15s;
+
+        /* ── InfoTip ── */
+        .info-tip{position:relative;display:inline-flex;}
+        .info-tip-btn{
+          width:14px;height:14px;border-radius:50%;border:1px solid rgba(255,255,255,0.3);
+          background:transparent;color:rgba(255,255,255,0.45);font-family:var(--sans);
+          font-size:9px;font-weight:700;cursor:help;display:inline-flex;align-items:center;
+          justify-content:center;line-height:1;flex-shrink:0;transition:all .15s;
+          padding:0;
         }
-        [data-tip]:hover::after{opacity:1;}
+        .info-tip-btn:hover{border-color:var(--cyan);color:var(--cyan);}
+        .info-tip-box{
+          display:none;position:absolute;bottom:calc(100% + 8px);left:50%;
+          transform:translateX(-50%);min-width:220px;max-width:300px;
+          background:#0c1e35;border:1px solid var(--border2);border-radius:5px;
+          padding:8px 12px;z-index:999;pointer-events:none;
+          font-family:var(--sans);font-size:10px;font-weight:400;
+          color:rgba(255,255,255,0.75);line-height:1.6;white-space:normal;
+          box-shadow:0 4px 20px rgba(0,0,0,0.5);
+        }
+        .info-tip:hover .info-tip-box{display:block;}
         /* ── Top bar wrapper (header + market nav stick together) ── */
         .top-bar{position:sticky;top:0;z-index:100;background:rgba(0,0,58,0.97);backdrop-filter:blur(20px);}
         /* ── Header ── */
@@ -879,9 +897,9 @@ export default function App(){
                 <div style={{display:"flex",gap:20,marginBottom:12,paddingBottom:10,borderBottom:"1px solid var(--border)"}}>
                   <span style={{fontFamily:"var(--sans)",fontSize:10,fontWeight:600,color:"rgba(255,255,255,0.5)",width:160}}>SIGNAL</span>
                   <span style={{fontFamily:"var(--sans)",fontSize:10,fontWeight:600,color:"rgba(255,255,255,0.5)",flex:1}}>7-DAY TREND</span>
-                  <span style={{fontFamily:"var(--sans)",fontSize:10,fontWeight:600,color:"rgba(255,255,255,0.5)",width:30,textAlign:"right"}} title="Signal index 0–99. Reddit (60%) + News volume (40%)">IDX</span>
-                  <span style={{fontFamily:"var(--sans)",fontSize:10,fontWeight:600,color:"rgba(255,255,255,0.5)",width:40,textAlign:"right"}} title="Week-on-week % change in signal score vs 7 days ago">WoW</span>
-                  <span style={{fontFamily:"var(--sans)",fontSize:10,fontWeight:600,color:"rgba(255,255,255,0.5)",width:55,textAlign:"right"}} title="Number of Google News RSS articles mentioning this signal in this market today">NEWS</span>
+                  <span style={{fontFamily:"var(--sans)",fontSize:10,fontWeight:600,color:"rgba(255,255,255,0.5)",width:50,textAlign:"right",display:"flex",alignItems:"center",gap:3,justifyContent:"flex-end"}}>IDX <InfoTip text="Signal index 0–99. Reddit post volume (60%) + geo-filtered news article count (40%), normalised across all markets." /></span>
+                  <span style={{fontFamily:"var(--sans)",fontSize:10,fontWeight:600,color:"rgba(255,255,255,0.5)",width:55,textAlign:"right",display:"flex",alignItems:"center",gap:3,justifyContent:"flex-end"}}>WoW <InfoTip text="Week-on-week % change: today's score vs same signal 7 days ago from history." /></span>
+                  <span style={{fontFamily:"var(--sans)",fontSize:10,fontWeight:600,color:"rgba(255,255,255,0.5)",width:70,textAlign:"right",display:"flex",alignItems:"center",gap:3,justifyContent:"flex-end"}}>NEWS <InfoTip text="Google News RSS article count for this signal in this market today." /></span>
                 </div>
                 {activeSigKeys.map(sk=>(
                   <SignalRow key={sk} sigKey={sk} sig={flatSigs[sk]}
@@ -954,9 +972,7 @@ export default function App(){
 
         {/* ── Market Heatmap ── */}
         <div>
-          <div className="sec" data-tip="Each cell = avg signal score.
-Reddit (60%) + geo-filtered News (40%).
-Click any cell to drill in.">Market Heatmap · Signal Intensity by Market & Category</div>
+          <div className="sec" >Market Heatmap · Signal Intensity by Market & Category <InfoTip text="Each cell = average signal score for that market × category. Reddit post volume (60%) + geo-filtered Google News article count (40%). Click any cell to switch to that market + category." /></div>
           <div className="card" style={{overflowX:"auto",padding:"20px 20px 16px"}}>
             {/* Legend */}
             <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,justifyContent:"flex-end"}}>
@@ -1058,9 +1074,7 @@ Click any cell to drill in.">Market Heatmap · Signal Intensity by Market & Cate
 
         {/* ── Trending Topics ── */}
         <div>
-          <div className="sec" data-tip="Top trending topics from Google Trends
-RSS per market. Classified into Sport/Ent
-vs Crisis by keyword matching.">Trending Topics · Google RSS · Today</div>
+          <div className="sec" >Trending Topics · Google RSS · Today <InfoTip text="Top trending search topics from Google Trends RSS per market today. Classified into Sport/Ent vs Crisis using keyword matching across topic titles and related headlines." /></div>
           <div className="topics-grid">
             {Object.entries(MARKET_FLAGS).map(([market,flag])=>{
               const r=rss[market]||{};
@@ -1096,9 +1110,7 @@ vs Crisis by keyword matching.">Trending Topics · Google RSS · Today</div>
         {/* ── Radar + Long-term ── */}
         <div className="analysis-grid">
           <div className="card">
-            <div className="card-title" data-tip="Relative signal strength across
-6 categories. Each axis = avg
-category score, 0–99.">Category Radar · {activeMarket}</div>
+            <div className="card-title" >Category Radar · {activeMarket} <InfoTip text="Radar showing relative signal strength across all 6 categories for the selected market. Each axis = average score for that category, normalised 0–99." /></div>
             <div className="card-sub">Signal strength by category — Reddit + News blended, 0–99 scale</div>
             <ResponsiveContainer width="100%" height={260}>
               <RadarChart data={radarData} margin={{top:10,right:20,bottom:10,left:20}}>
@@ -1113,9 +1125,7 @@ category score, 0–99.">Category Radar · {activeMarket}</div>
           </div>
 
           <div className="card">
-            <div className="card-title" data-tip="Daily avg of all signals per category.
-Backfill = weekly Reddit buckets ±15%.
-Real data from first workflow run.">Long-term Category Trends · {activeMarket}</div>
+            <div className="card-title" >Long-term Category Trends · {activeMarket} <InfoTip text="Daily average of all signal scores within each category for this market. Backfill uses weekly Reddit buckets with ±15% jitter. Real daily data starts from first workflow run." /></div>
             <div className="card-sub">Daily avg signal index per category — Reddit (60%) + News (40%) blended</div>
             {history.length > 0 ? (
               <>
