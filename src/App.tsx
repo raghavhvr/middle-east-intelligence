@@ -942,27 +942,102 @@ export default function App(){
         {twitch.total_viewers > 0 && (
           <div>
             <div className="sec">Live Gaming · Twitch · Right Now</div>
-            <div className="card">
-              <div className="twitch-row">
-                <div className="twitch-stat">
-                  <div className="twitch-num">{fmt(twitch.total_viewers||0)}</div>
-                  <div className="twitch-lbl">Live Viewers</div>
-                </div>
-                <div className="game-rows">
-                  {(twitch.top_games||[]).map((g:any,i:number)=>{
-                    const max=(twitch.top_games?.[0]?.viewers)||1;
-                    const colors=["var(--cyan)","var(--purple)","var(--orange)","var(--green)","var(--muted)"];
-                    return (
-                      <div key={i} className="game-row">
-                        <div className="game-name">{g.name}</div>
-                        <div className="game-bar-bg">
-                          <div className="game-bar-fg" style={{width:`${(g.viewers/max)*100}%`,background:colors[i]}}/>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              {/* Today snapshot */}
+              <div className="card">
+                <div className="twitch-row">
+                  <div className="twitch-stat">
+                    <div className="twitch-num">{fmt(twitch.total_viewers||0)}</div>
+                    <div className="twitch-lbl">Live Viewers</div>
+                  </div>
+                  <div className="game-rows">
+                    {(twitch.top_games||[]).map((g:any,i:number)=>{
+                      const max=(twitch.top_games?.[0]?.viewers)||1;
+                      const colors=["var(--cyan)","var(--purple)","var(--orange)","var(--green)","var(--muted)"];
+                      return (
+                        <div key={i} className="game-row">
+                          <div className="game-name">{g.name}</div>
+                          <div className="game-bar-bg">
+                            <div className="game-bar-fg" style={{width:`${(g.viewers/max)*100}%`,background:colors[i]}}/>
+                          </div>
+                          <div className="game-views">{fmt(g.viewers)}</div>
                         </div>
-                        <div className="game-views">{fmt(g.viewers)}</div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
+              </div>
+              {/* Viewership trend */}
+              <div className="card">
+                <div style={{fontSize:11,fontWeight:600,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:12}}>
+                  TOTAL VIEWERSHIP · {history.length}-DAY TREND
+                </div>
+                {(()=>{
+                  const twitchHistory = history
+                    .filter((r:any)=>r.twitch_viewers>0)
+                    .map((r:any)=>({date:r.date?.slice(5), viewers:r.twitch_viewers}));
+                  if(twitchHistory.length < 2) return (
+                    <div style={{color:"var(--muted)",fontSize:11,padding:"20px 0"}}>
+                      Trend builds after a few daily runs
+                    </div>
+                  );
+                  return (
+                    <ResponsiveContainer width="100%" height={120}>
+                      <LineChart data={twitchHistory}>
+                        <XAxis dataKey="date" tick={{fontSize:9,fill:"#3d5060"}} axisLine={false} tickLine={false}
+                          interval={Math.floor(twitchHistory.length/4)}/>
+                        <YAxis tick={{fontSize:9,fill:"#3d5060"}} axisLine={false} tickLine={false} width={40}
+                          tickFormatter={(v:number)=>fmt(v)}/>
+                        <Tooltip formatter={(v:any)=>[fmt(v),"Viewers"]} contentStyle={{background:"var(--s1)",border:"1px solid var(--border)",borderRadius:4,fontSize:11}}/>
+                        <Line type="monotone" dataKey="viewers" stroke="var(--cyan)"
+                          strokeWidth={2} dot={false} connectNulls/>
+                      </LineChart>
+                    </ResponsiveContainer>
+                  );
+                })()}
+                {/* Top game trends */}
+                {(()=>{
+                  const allGames = Array.from(new Set(
+                    history.flatMap((r:any)=>(r.twitch_top_games||[]).map((g:any)=>g.name))
+                  )).slice(0,5) as string[];
+                  if(!allGames.length) return null;
+                  const colors=["var(--cyan)","var(--purple)","var(--orange)","var(--green)","var(--muted)"];
+                  const gameHistory = history
+                    .filter((r:any)=>(r.twitch_top_games||[]).length>0)
+                    .map((r:any)=>({
+                      date: r.date?.slice(5),
+                      ...Object.fromEntries(allGames.map(g=>[g,(r.twitch_top_games||[]).find((x:any)=>x.name===g)?.viewers||0]))
+                    }));
+                  if(gameHistory.length < 2) return null;
+                  return (
+                    <div style={{marginTop:16}}>
+                      <div style={{fontSize:11,fontWeight:600,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:8}}>
+                        TOP GAMES · VIEWERSHIP TREND
+                      </div>
+                      <ResponsiveContainer width="100%" height={120}>
+                        <LineChart data={gameHistory}>
+                          <XAxis dataKey="date" tick={{fontSize:9,fill:"#3d5060"}} axisLine={false} tickLine={false}
+                            interval={Math.floor(gameHistory.length/4)}/>
+                          <YAxis tick={{fontSize:9,fill:"#3d5060"}} axisLine={false} tickLine={false} width={40}
+                            tickFormatter={(v:number)=>fmt(v)}/>
+                          <Tooltip contentStyle={{background:"var(--s1)",border:"1px solid var(--border)",borderRadius:4,fontSize:11}}/>
+                          {allGames.map((g,i)=>(
+                            <Line key={g} type="monotone" dataKey={g} name={g}
+                              stroke={colors[i]} strokeWidth={1.5} dot={false} connectNulls/>
+                          ))}
+                        </LineChart>
+                      </ResponsiveContainer>
+                      <div style={{display:"flex",gap:12,flexWrap:"wrap",marginTop:8}}>
+                        {allGames.map((g,i)=>(
+                          <div key={g} style={{display:"flex",alignItems:"center",gap:4}}>
+                            <div style={{width:8,height:8,borderRadius:"50%",background:colors[i]}}/>
+                            <span style={{fontSize:10,color:"var(--muted)"}}>{g}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>
