@@ -113,12 +113,20 @@ function CategoryCard({
             {!hasRealData && <span style={{color:"var(--muted)",marginLeft:6,fontSize:8}}>· pending run</span>}
           </div>
         </div>
-        <div className="cat-score-wrap" title="Score = Reddit (60%) + News (40%). Scale 0–99.">
-          <div className="cat-score" style={{opacity:hasRealData?1:0.4,cursor:"help"}}>{displayScore}</div>
+        <div className="cat-score-wrap">
+          <div style={{display:"flex",alignItems:"flex-start",justifyContent:"flex-end",gap:4}}>
+            <div className="cat-score" style={{opacity:hasRealData?1:0.4}}>{displayScore}</div>
+            <InfoTip text={`Score = Reddit activity (60%) + geo-filtered news volume (40%). Scale 0–99.
+
+Reddit captures global interest in this topic.
+News volume captures local MENA media coverage.
+
+Current: ${displayScore}/99`} />
+          </div>
           {baselineAvg !== null && (
-            <div style={{fontSize:9,color:"rgba(255,255,255,0.35)",fontFamily:"var(--sans)",fontWeight:500,marginTop:1}}
-              title="30-day average for this market">
+            <div style={{display:"flex",alignItems:"center",gap:3,justifyContent:"flex-end",fontSize:9,color:"rgba(255,255,255,0.35)",fontFamily:"var(--sans)",fontWeight:500,marginTop:1}}>
               avg {baselineAvg}
+              <InfoTip text="30-day average score for this category in this market. Use this to judge if today's score is elevated or suppressed." />
             </div>
           )}
           <div className={`cat-trend ${trend>0?"up":trend<0?"down":"flat"}`} title="7-day movement">
@@ -131,7 +139,10 @@ function CategoryCard({
         <div style={{marginBottom:8}}>
           <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
             <span style={{fontFamily:"var(--sans)",fontSize:10,fontWeight:600,color:"rgba(255,255,255,0.5)"}}>
-              <span title="% of today's Google Trends topics that fall into this category for this market">{catKey==="crisis_awareness"?"CRISIS SIGNAL":catKey==="escapism"?"SPORT/ENT SIGNAL":"RSS SIGNAL"} · {activeMarket}</span>
+              <span style={{display:"flex",alignItems:"center",gap:3}}>
+                {catKey==="crisis_awareness"?"CRISIS SIGNAL":catKey==="escapism"?"SPORT/ENT SIGNAL":"RSS SIGNAL"} · {activeMarket}
+                <InfoTip text="% of today's Google Trends RSS trending topics classified into this category for this market. Sourced from Google Trends, classified by keyword matching." />
+              </span>
             </span>
             <span style={{fontFamily:"var(--sans)",fontSize:10,fontWeight:700,color:cat.color}}>{Math.min(100,rssSignal)}%</span>
           </div>
