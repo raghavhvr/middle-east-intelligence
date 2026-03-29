@@ -831,6 +831,7 @@ def append_today(history: list, pulse: dict, signals: dict) -> list:
             for m in MARKETS.values()
         },
         "twitch_viewers": pulse.get("global", {}).get("twitch", {}).get("total_viewers", 0),
+        "twitch_top_games": pulse.get("global", {}).get("twitch", {}).get("top_games", []),
     }
 
     # Per-signal max gnews count across all markets for normalisation
