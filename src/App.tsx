@@ -933,64 +933,96 @@ export default function App(){
 
         {/* ── Market Heatmap ── */}
         <div>
-          <div className="sec">Market Heatmap · All Markets × All Categories</div>
-          <div className="card" style={{overflowX:"auto"}}>
+          <div className="sec">Market Heatmap · Signal Intensity by Market & Category</div>
+          <div className="card" style={{overflowX:"auto",padding:"20px 20px 16px"}}>
+            {/* Legend */}
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,justifyContent:"flex-end"}}>
+              <span style={{fontSize:9,color:"var(--muted)",fontFamily:"var(--sans)",fontWeight:600}}>LOW</span>
+              {[0,20,40,60,80,100].map(v=>(
+                <div key={v} style={{width:24,height:10,borderRadius:2,background:
+                  v<33?`rgba(84,101,255,${0.15+v/33*0.35})`:
+                  v<66?`rgba(252,254,103,${0.2+(v-33)/33*0.5})`:
+                  `rgba(176,244,103,${0.35+(v-66)/34*0.5})`}}/>
+              ))}
+              <span style={{fontSize:9,color:"var(--muted)",fontFamily:"var(--sans)",fontWeight:600}}>HIGH</span>
+            </div>
             {(()=>{
-              const hmCats = catKeys;
               const hmMkts = Object.keys(MARKET_FLAGS);
-              const cellW  = 72, cellH = 36, labelW = 90, headerH = 32;
-              // Score → colour interpolation (dark blue → amber → lime)
-              function scoreColor(score:number|null){
-                if(score==null) return "rgba(255,255,255,0.04)";
-                const s = Math.max(0,Math.min(100,score));
-                if(s<33)  return `rgba(84,101,255,${0.15+s/33*0.35})`;
-                if(s<66)  return `rgba(252,254,103,${0.2+(s-33)/33*0.5})`;
-                return `rgba(176,244,103,${0.35+(s-66)/34*0.5})`;
+              function scoreColor(s:number|null){
+                if(s==null) return "rgba(255,255,255,0.05)";
+                const v = Math.max(0,Math.min(100,s));
+                if(v<33)  return `rgba(84,101,255,${0.15+v/33*0.35})`;
+                if(v<66)  return `rgba(252,254,103,${0.2+(v-33)/33*0.5})`;
+                return `rgba(176,244,103,${0.35+(v-66)/34*0.5})`;
               }
-              function scoreTextColor(score:number|null){
-                if(score==null) return "rgba(255,255,255,0.2)";
-                const s = Math.max(0,Math.min(100,score));
-                if(s<33) return "rgba(200,210,255,0.8)";
-                if(s<66) return "rgba(20,20,10,0.9)";
-                return "rgba(10,30,10,0.9)";
+              function textColor(s:number|null){
+                if(s==null) return "rgba(255,255,255,0.18)";
+                const v = Math.max(0,Math.min(100,s));
+                return v<55 ? "rgba(220,225,255,0.85)" : "rgba(10,20,10,0.9)";
               }
+              const CAT_SHORT: Record<string,string> = {
+                escapism:"Escapism", crisis_awareness:"Crisis", economic_anxiety:"Economy",
+                behavioral_shifts:"Behaviour", wellness:"Wellness", social_community:"Social"
+              };
               return (
-                <div style={{display:"grid",
-                  gridTemplateColumns:`${labelW}px ${hmCats.map(()=>cellW+"px").join(" ")}`,
-                  gap:2}}>
-                  {/* Header row */}
-                  <div/>
-                  {hmCats.map(ck=>(
-                    <div key={ck} className="heatmap-label-row"
-                      style={{height:headerH,justifyContent:"center",textAlign:"center",padding:"0 4px"}}>
-                      {categories[ck]?.label?.replace(" & ","/").replace(" Mental Health","").replace("Economic ","Econ ").replace("Behavioral ","Behav ")}
-                    </div>
-                  ))}
-                  {/* Data rows */}
-                  {hmMkts.map(m=>{
-                    const flag = MARKET_FLAGS[m as keyof typeof MARKET_FLAGS];
-                    return [
-                      <div key={m+"-lbl"} className="heatmap-market-col"
-                        style={{height:cellH,borderLeft:`2px solid ${m===activeMarket?"var(--lime)":"transparent"}`
-                          ,paddingLeft:6}}>
-                        <span style={{marginRight:4}}>{flag}</span>{m}
-                      </div>,
-                      ...hmCats.map(ck=>{
-                        const sigs = Object.keys(categories[ck]?.signals||{});
-                        const vals = sigs.map(s=>{ const v=markets[m]?.[s]; return (v!=null&&typeof v==="number")?v:null; }).filter((v:any)=>v!=null) as number[];
-                        const avg  = vals.length ? Math.round(vals.reduce((a:number,b:number)=>a+b,0)/vals.length) : null;
-                        return (
-                          <div key={m+ck} className="heatmap-cell"
-                            style={{height:cellH,background:scoreColor(avg),color:scoreTextColor(avg)}}
-                            title={`${m} · ${categories[ck]?.label}: ${avg??"-"}`}
-                            onClick={()=>{ setActiveMarket(m); setActiveCat(ck); }}>
-                            {avg??"-"}
-                          </div>
-                        );
-                      })
-                    ];
-                  })}
-                </div>
+                <table style={{width:"100%",borderCollapse:"separate",borderSpacing:3}}>
+                  <thead>
+                    <tr>
+                      <th style={{width:110,textAlign:"left",paddingBottom:8,fontFamily:"var(--sans)",fontSize:9,fontWeight:600,color:"var(--muted)",letterSpacing:1}}></th>
+                      {catKeys.map(ck=>(
+                        <th key={ck} style={{textAlign:"center",paddingBottom:8,fontFamily:"var(--sans)",fontSize:9,fontWeight:600,color:"rgba(255,255,255,0.5)",letterSpacing:0.5,whiteSpace:"nowrap"}}>
+                          {categories[ck]?.icon} {CAT_SHORT[ck]||ck}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {hmMkts.map(m=>{
+                      const flag = MARKET_FLAGS[m as keyof typeof MARKET_FLAGS];
+                      const isActive = m===activeMarket;
+                      return (
+                        <tr key={m}>
+                          <td style={{paddingRight:8,paddingTop:2,paddingBottom:2}}>
+                            <div style={{display:"flex",alignItems:"center",gap:6,
+                              fontFamily:"var(--sans)",fontSize:11,fontWeight:isActive?700:500,
+                              color:isActive?"var(--lime)":"rgba(255,255,255,0.6)",
+                              borderLeft:`2px solid ${isActive?"var(--lime)":"transparent"}`,
+                              paddingLeft:6,cursor:"pointer",whiteSpace:"nowrap"}}
+                              onClick={()=>setActiveMarket(m)}>
+                              <span style={{fontSize:14}}>{flag}</span>{m}
+                            </div>
+                          </td>
+                          {catKeys.map(ck=>{
+                            const sigs = Object.keys(categories[ck]?.signals||{});
+                            const vals = sigs.map(s=>{ const v=markets[m]?.[s]; return (v!=null&&typeof v==="number")?v:null; }).filter((v:any)=>v!=null) as number[];
+                            const avg  = vals.length ? Math.round(vals.reduce((a:number,b:number)=>a+b,0)/vals.length) : null;
+                            return (
+                              <td key={ck} style={{padding:"2px 3px"}}>
+                                <div
+                                  onClick={()=>{ setActiveMarket(m); setActiveCat(ck); }}
+                                  title={`${m} · ${categories[ck]?.label}: ${avg??"-"}`}
+                                  style={{
+                                    height:34,borderRadius:4,
+                                    background:scoreColor(avg),
+                                    color:textColor(avg),
+                                    display:"flex",alignItems:"center",justifyContent:"center",
+                                    fontFamily:"var(--mono)",fontSize:12,fontWeight:700,
+                                    cursor:"pointer",transition:"transform .1s, box-shadow .1s",
+                                    boxShadow: m===activeMarket&&ck===activeCat?"0 0 0 2px var(--lime)":"none",
+                                  }}
+                                  onMouseEnter={e=>(e.currentTarget.style.transform="scale(1.06)")}
+                                  onMouseLeave={e=>(e.currentTarget.style.transform="scale(1)")}
+                                >
+                                  {avg??<span style={{fontSize:9,opacity:0.4}}>·</span>}
+                                </div>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               );
             })()}
           </div>
