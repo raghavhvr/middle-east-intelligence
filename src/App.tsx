@@ -994,8 +994,13 @@ export default function App(){
                           </td>
                           {catKeys.map(ck=>{
                             const sigs = Object.keys(categories[ck]?.signals||{});
-                            const vals = sigs.map(s=>{ const v=markets[m]?.[s]; return (v!=null&&typeof v==="number")?v:null; }).filter((v:any)=>v!=null) as number[];
-                            const avg  = vals.length ? Math.round(vals.reduce((a:number,b:number)=>a+b,0)/vals.length) : null;
+                            // Blend Reddit score (60%) + gnews count normalised (40%) — same as CategoryCard
+                            const mktScores = sigs.map(s=>{ const v=markets[m]?.[s]; return (v!=null&&typeof v==="number")?v:null; }).filter((v:any)=>v!=null) as number[];
+                            const gnewsVols = sigs.map(s=>getGnewsCount(m,s));
+                            const gnewsMax  = Math.max(...Object.keys(MARKET_FLAGS).flatMap(mm=>sigs.map(s=>getGnewsCount(mm,s))),1);
+                            const gnewsNorm = gnewsVols.length ? gnewsVols.reduce((a,b)=>a+b,0)/gnewsVols.length/gnewsMax*100 : 0;
+                            const redditAvg = mktScores.length ? mktScores.reduce((a:number,b:number)=>a+b,0)/mktScores.length : null;
+                            const avg = redditAvg!=null ? Math.round(redditAvg*0.6 + gnewsNorm*0.4) : (gnewsNorm>0 ? Math.round(gnewsNorm) : null);
                             return (
                               <td key={ck} style={{padding:"2px 3px"}}>
                                 <div
