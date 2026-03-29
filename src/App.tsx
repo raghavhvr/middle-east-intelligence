@@ -38,11 +38,11 @@ const CustomTooltip = ({active,payload,label}:any) => {
 // ── Category score card ───────────────────────────────────────────────────────
 function CategoryCard({
   cat, catKey, signals, markets, activeMarket, isActive, onClick,
-  newsapi, guardian, rss
+  newsapi, guardian, rss, history
 }:{
   cat:any, catKey:string, signals:Record<string,any>,
   markets:any, activeMarket:string, isActive:boolean, onClick:()=>void,
-  newsapi:any, guardian:any, rss:any
+  newsapi:any, guardian:any, rss:any, history:any[]
 }){
   const catSignals = Object.keys(signals).filter(k=>signals[k].category===catKey);
 
@@ -64,6 +64,15 @@ function CategoryCard({
   const marketAvg = marketScores.length
     ? Math.round(marketScores.reduce((a,b)=>a+b,0)/marketScores.length)
     : null;
+
+  // 30-day baseline average for this category from history
+  const baselineAvg = (()=>{
+    const vals = (history||[]).slice(-30).map((rec:any)=>{
+      const sigs = catSignals.map((k:string)=>{ const v=rec.markets?.[activeMarket]?.[k]; return (v!=null&&typeof v==="number")?v:null; }).filter((v:any)=>v!=null) as number[];
+      return sigs.length ? sigs.reduce((a:number,b:number)=>a+b,0)/sigs.length : null;
+    }).filter((v:any)=>v!=null) as number[];
+    return vals.length ? Math.round(vals.reduce((a:number,b:number)=>a+b,0)/vals.length) : null;
+  })();
 
   // RSS market signal (genuinely per-market from Trends RSS)
   const rssMarket = rss[activeMarket]||{};
@@ -104,8 +113,14 @@ function CategoryCard({
             {!hasRealData && <span style={{color:"var(--muted)",marginLeft:6,fontSize:8}}>· pending run</span>}
           </div>
         </div>
-        <div className="cat-score-wrap">
-          <div className="cat-score" style={{opacity:hasRealData?1:0.4}}>{displayScore}</div>
+        <div className="cat-score-wrap" title="Score = Reddit activity (60%) + News volume (40%). 0–99 scale.">
+          <div className="cat-score" style={{opacity:hasRealData?1:0.4,cursor:"help"}}>{displayScore}</div>
+          {baselineAvg !== null && (
+            <div style={{fontSize:9,color:"rgba(255,255,255,0.35)",fontFamily:"var(--sans)",fontWeight:500,marginTop:1}}
+              title="30-day average for this market">
+              avg {baselineAvg}
+            </div>
+          )}
           <div className={`cat-trend ${trend>0?"up":trend<0?"down":"flat"}`}>
             {trend>0?"▲":trend<0?"▼":"→"} {Math.abs(Math.round(trend))}
           </div>
@@ -118,10 +133,10 @@ function CategoryCard({
             <span style={{fontFamily:"var(--sans)",fontSize:10,fontWeight:600,color:"rgba(255,255,255,0.5)"}}>
               {catKey==="crisis_awareness"?"CRISIS SIGNAL":catKey==="escapism"?"SPORT/ENT SIGNAL":"RSS SIGNAL"} · {activeMarket}
             </span>
-            <span style={{fontFamily:"var(--sans)",fontSize:10,fontWeight:700,color:cat.color}}>{rssSignal}%</span>
+            <span style={{fontFamily:"var(--sans)",fontSize:10,fontWeight:700,color:cat.color}}>{Math.min(100,rssSignal)}%</span>
           </div>
           <div style={{height:3,background:"var(--border)",borderRadius:2,overflow:"hidden"}}>
-            <div style={{height:"100%",width:`${rssSignal}%`,background:cat.color,
+            <div style={{height:"100%",width:`${Math.min(100,rssSignal)}%`,background:cat.color,
               borderRadius:2,transition:"width .4s"}}/>
           </div>
         </div>
@@ -143,33 +158,36 @@ function SignalRow({sigKey,sig,markets,activeMarket,dates,newsapi,guardian,newsa
   sigKey:string,sig:any,markets:any,activeMarket:string,
   dates:string[],newsapi:any,guardian:any,newsapiAllMarkets:any,history:any[]
 }){
-  // New schema: market score is a scalar float (Reddit-based, 0-100)
+  const [expanded, setExpanded] = useState(false);
   const marketScore = (()=>{ const v=markets[activeMarket]?.[sigKey]; return (v!=null&&typeof v==="number")?v:null; })();
-  const newsVol     = newsapiAllMarkets?.[activeMarket]?.[sigKey]||0; // gnews count
+  const newsVol     = newsapiAllMarkets?.[activeMarket]?.[sigKey]||0;
 
-  // Trend vs other markets
+  // WoW: actual 7-day change from history
   const allMarkets = Object.keys(MARKET_FLAGS);
-  const allScores  = allMarkets.map(m=>{ const v=markets[m]?.[sigKey]; return (v!=null&&typeof v==="number")?v:null; }).filter(v=>v!=null) as number[];
-  const avgScore   = allScores.length ? allScores.reduce((a,b)=>a+b,0)/allScores.length : 50;
   const normVol    = marketScore ?? Math.round((newsVol / Math.max(...allMarkets.map(m=>newsapiAllMarkets?.[m]?.[sigKey]||0),1))*100);
-  const pct        = avgScore > 0 ? Math.round(((normVol - avgScore)/avgScore)*100) : 0;
+  const hist7      = history.slice(-7).map((r:any)=>{ const v=r.markets?.[activeMarket]?.[sigKey]; return (v!=null&&typeof v==="number")?v:null; });
+  const oldest     = hist7.find((v:any)=>v!=null);
+  const newest     = [...hist7].reverse().find((v:any)=>v!=null);
+  const pct        = (oldest!=null && newest!=null && oldest>0) ? Math.round(((newest-oldest)/oldest)*100) : 0;
 
-  // Sparkline from history — per-market signal values over time
-  const chartData = history.slice(-7).map((rec:any)=>({
+  // Full history chart data
+  const chartData = history.map((rec:any)=>({
     date: rec.date?.slice(5)||"",
-    value: (()=>{ const v=rec.markets?.[activeMarket]?.[sigKey]; return (v!=null&&typeof v==="number")?v:null; })()
+    value: (()=>{ const v=rec.markets?.[activeMarket]?.[sigKey]; return (v!=null&&typeof v==="number")?Math.round(v):null; })()
   }));
-  const hasWiki = chartData.some((d:any)=>d.value!=null);
+  const sparkData = chartData.slice(-7);
 
   return (
-    <div className="signal-row">
+    <>
+    <div className="signal-row" onClick={()=>setExpanded(e=>!e)}
+      style={{cursor:"pointer",userSelect:"none"}}>
       <div className="signal-row-left">
         <div className="signal-dot" style={{background:sig.color||"#4a6070"}} />
         <div className="signal-name">{sig.label}</div>
       </div>
       <div className="signal-sparkline-wrap">
         <ResponsiveContainer width={120} height={28}>
-          <LineChart data={chartData}>
+          <LineChart data={sparkData}>
             <Line type="monotone" dataKey="value" stroke={sig.color||"#4a6070"}
               strokeWidth={1.5} dot={false} connectNulls />
           </LineChart>
@@ -178,12 +196,32 @@ function SignalRow({sigKey,sig,markets,activeMarket,dates,newsapi,guardian,newsa
       <div className="signal-row-right">
         <div className="signal-val">{Math.round(marketScore ?? normVol)}</div>
         <div className={`signal-pct ${pct>0?"up":pct<0?"down":"flat"}`}
-          title={`vs market avg ${Math.round(avgScore)}`}>
+          title="Week-on-week change">
           {pct>0?"▲":pct<0?"▼":"→"}{Math.abs(pct)}%
         </div>
-        <div className="signal-news">{fmt(newsVol)} art.</div>
+        <div className="signal-news">{newsVol>0?`${fmt(newsVol)} art.`:"—"}</div>
+        <div style={{fontSize:10,color:"var(--muted)",width:12}}>{expanded?"▲":"▼"}</div>
       </div>
     </div>
+    {expanded && (
+      <div style={{padding:"12px 0 16px",borderBottom:"1px solid var(--border)"}}>
+        <div style={{fontSize:10,color:"var(--muted)",marginBottom:8,letterSpacing:1,fontWeight:600}}>
+          {sig.label.toUpperCase()} · {activeMarket} · {history.length}-DAY TREND
+        </div>
+        <ResponsiveContainer width="100%" height={140}>
+          <LineChart data={chartData} margin={{top:4,right:8,bottom:0,left:0}}>
+            <XAxis dataKey="date" tick={{fontSize:9,fill:"#3d5060"}} axisLine={false} tickLine={false}
+              interval={Math.floor(chartData.length/5)}/>
+            <YAxis domain={[0,100]} tick={{fontSize:9,fill:"#3d5060"}} axisLine={false} tickLine={false} width={24}/>
+            <Tooltip contentStyle={{background:"var(--s1)",border:"1px solid var(--border)",borderRadius:4,fontSize:11}}
+              formatter={(v:any)=>[v,"Score"]}/>
+            <Line type="monotone" dataKey="value" stroke={sig.color||"#4a6070"}
+              strokeWidth={2} dot={false} connectNulls/>
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    )}
+    </>
   );
 }
 
@@ -312,6 +350,23 @@ export default function App(){
     if(!res.ok){ const e=await res.json(); throw new Error(e.message||`GitHub ${res.status}`); }
     setConfig(newConfig);
     setConfigSha((await res.json()).content?.sha||configSha);
+  }
+
+  function exportSummary(){
+    const lines:string[] = [];
+    lines.push(`CRISIS PULSE — ${activeMarket} — ${new Date().toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}`);
+    lines.push("=".repeat(50));
+    catKeys.forEach(ck=>{
+      const cat = categories[ck];
+      const sigs = Object.keys(cat.signals||{});
+      const vals = sigs.map((s:string)=>{ const v=markets[activeMarket]?.[s]; return (v!=null&&typeof v==="number")?v:null; }).filter((v:any)=>v!=null) as number[];
+      const avg = vals.length ? Math.round(vals.reduce((a:number,b:number)=>a+b,0)/vals.length) : 0;
+      lines.push(`\n${cat.icon} ${cat.label.toUpperCase()}: ${avg}/99`);
+      sigs.forEach((s:string)=>{ const v=markets[activeMarket]?.[s]; if(v!=null&&typeof v==="number") lines.push(`  · ${flatSigs[s]?.label}: ${Math.round(v)}`); });
+    });
+    lines.push("\n" + "=".repeat(50));
+    lines.push(`Source: Crisis Pulse · WPP Media MENA · ${DATA_URL}`);
+    navigator.clipboard.writeText(lines.join("\n")).then(()=>alert("Summary copied to clipboard!"));
   }
 
   if(error) return (
@@ -541,7 +596,7 @@ export default function App(){
         .sec::after{content:'';flex:1;height:1px;background:var(--border);}
 
         /* ── Category grid ── */
-        .cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;}
+        .cat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}@media(max-width:900px){.cat-grid{grid-template-columns:repeat(2,1fr);}}
         .cat-card{
           background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:6px;
           padding:16px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;
@@ -570,6 +625,19 @@ export default function App(){
         .spark-bar{width:100%;border-radius:1px;transition:height .3s;}
         .cat-hypothesis{font-size:10px;color:var(--muted);line-height:1.5;font-style:italic;}
 
+
+        /* ── Market heatmap ── */
+        .heatmap-grid{display:grid;gap:2px;}
+        .heatmap-cell{
+          display:flex;align-items:center;justify-content:center;
+          border-radius:3px;font-family:var(--mono);font-size:11px;font-weight:700;
+          cursor:pointer;transition:all .15s;position:relative;
+        }
+        .heatmap-cell:hover{transform:scale(1.08);z-index:2;box-shadow:0 2px 8px rgba(0,0,0,0.4);}
+        .heatmap-label-row{display:flex;align-items:center;font-family:var(--sans);font-size:9px;
+          font-weight:600;color:rgba(255,255,255,0.4);letter-spacing:0.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .heatmap-market-col{display:flex;align-items:center;font-family:var(--sans);font-size:10px;
+          font-weight:600;color:rgba(255,255,255,0.6);white-space:nowrap;padding-right:4px;}
         /* ── Signal detail panel ── */
         .detail-panel{background:var(--s1);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
         .dp-header{
@@ -689,7 +757,28 @@ export default function App(){
         /* ── Responsive ── */
         @media(max-width:1100px){.dp-body{grid-template-columns:1fr;}.dp-chart-panel{border-top:1px solid var(--border);}.analysis-grid{grid-template-columns:1fr;}}
         @media(max-width:900px){.topics-grid{grid-template-columns:1fr 1fr;}.cat-grid{grid-template-columns:repeat(2,1fr);}}
-        @media(max-width:600px){.topics-grid{grid-template-columns:1fr;}.cat-grid{grid-template-columns:1fr;}.main{padding:16px;}.hdr{padding:12px 16px;}}
+        @media(max-width:900px){.dp-body{grid-template-columns:1fr;}.dp-chart-panel{border-top:1px solid var(--border);}.analysis-grid{grid-template-columns:1fr;}}
+        @media(max-width:768px){
+          .top-bar{position:sticky;}
+          .hdr{padding:10px 16px;height:auto;flex-wrap:wrap;gap:8px;}
+          .hdr-right{display:none;}
+          .cat-grid{grid-template-columns:1fr 1fr!important;}
+          .topics-grid{grid-template-columns:1fr 1fr;}
+          .analysis-grid{grid-template-columns:1fr;}
+          .dp-body{grid-template-columns:1fr;}
+          .main{padding:12px 16px;}
+          .market-bar{padding:0 12px;}
+          .mkt-tab{padding:10px 14px;font-size:12px;}
+          .card{padding:14px;}
+          .signal-row-left{width:120px;}
+        }
+        @media(max-width:480px){
+          .cat-grid{grid-template-columns:1fr!important;}
+          .topics-grid{grid-template-columns:1fr;}
+          .heatmap-grid{font-size:9px;}
+          .twitch-row{grid-template-columns:1fr;}
+          .twitch-stat{border-right:none;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:12px;}
+        }
       `}</style>
 
       <div className="top-bar">
@@ -715,6 +804,7 @@ export default function App(){
             ))}
           </div>
           <span className="ts">{timeAgoStr}</span>
+          <button className="sp-trigger" onClick={exportSummary} title="Copy market summary to clipboard">⬇ Export</button>
           <button className="sp-trigger" onClick={()=>setShowSettings(true)}>⚙ Signals</button>
         </div>
       </header>
@@ -745,7 +835,7 @@ export default function App(){
                 activeMarket={activeMarket}
                 isActive={activeCat===ck}
                 onClick={()=>setActiveCat(activeCat===ck?null:ck)}
-                newsapi={newsapi} guardian={guardian} rss={rss} />
+                newsapi={newsapi} guardian={guardian} rss={rss} history={history} />
             ))}
           </div>
         </div>
@@ -840,6 +930,71 @@ export default function App(){
             </div>
           </div>
         )}
+
+        {/* ── Market Heatmap ── */}
+        <div>
+          <div className="sec">Market Heatmap · All Markets × All Categories</div>
+          <div className="card" style={{overflowX:"auto"}}>
+            {(()=>{
+              const hmCats = catKeys;
+              const hmMkts = Object.keys(MARKET_FLAGS);
+              const cellW  = 72, cellH = 36, labelW = 90, headerH = 32;
+              // Score → colour interpolation (dark blue → amber → lime)
+              function scoreColor(score:number|null){
+                if(score==null) return "rgba(255,255,255,0.04)";
+                const s = Math.max(0,Math.min(100,score));
+                if(s<33)  return `rgba(84,101,255,${0.15+s/33*0.35})`;
+                if(s<66)  return `rgba(252,254,103,${0.2+(s-33)/33*0.5})`;
+                return `rgba(176,244,103,${0.35+(s-66)/34*0.5})`;
+              }
+              function scoreTextColor(score:number|null){
+                if(score==null) return "rgba(255,255,255,0.2)";
+                const s = Math.max(0,Math.min(100,score));
+                if(s<33) return "rgba(200,210,255,0.8)";
+                if(s<66) return "rgba(20,20,10,0.9)";
+                return "rgba(10,30,10,0.9)";
+              }
+              return (
+                <div style={{display:"grid",
+                  gridTemplateColumns:`${labelW}px ${hmCats.map(()=>cellW+"px").join(" ")}`,
+                  gap:2}}>
+                  {/* Header row */}
+                  <div/>
+                  {hmCats.map(ck=>(
+                    <div key={ck} className="heatmap-label-row"
+                      style={{height:headerH,justifyContent:"center",textAlign:"center",padding:"0 4px"}}>
+                      {categories[ck]?.label?.replace(" & ","/").replace(" Mental Health","").replace("Economic ","Econ ").replace("Behavioral ","Behav ")}
+                    </div>
+                  ))}
+                  {/* Data rows */}
+                  {hmMkts.map(m=>{
+                    const flag = MARKET_FLAGS[m as keyof typeof MARKET_FLAGS];
+                    return [
+                      <div key={m+"-lbl"} className="heatmap-market-col"
+                        style={{height:cellH,borderLeft:`2px solid ${m===activeMarket?"var(--lime)":"transparent"}`
+                          ,paddingLeft:6}}>
+                        <span style={{marginRight:4}}>{flag}</span>{m}
+                      </div>,
+                      ...hmCats.map(ck=>{
+                        const sigs = Object.keys(categories[ck]?.signals||{});
+                        const vals = sigs.map(s=>{ const v=markets[m]?.[s]; return (v!=null&&typeof v==="number")?v:null; }).filter((v:any)=>v!=null) as number[];
+                        const avg  = vals.length ? Math.round(vals.reduce((a:number,b:number)=>a+b,0)/vals.length) : null;
+                        return (
+                          <div key={m+ck} className="heatmap-cell"
+                            style={{height:cellH,background:scoreColor(avg),color:scoreTextColor(avg)}}
+                            title={`${m} · ${categories[ck]?.label}: ${avg??"-"}`}
+                            onClick={()=>{ setActiveMarket(m); setActiveCat(ck); }}>
+                            {avg??"-"}
+                          </div>
+                        );
+                      })
+                    ];
+                  })}
+                </div>
+              );
+            })()}
+          </div>
+        </div>
 
         {/* ── Trending Topics ── */}
         <div>
