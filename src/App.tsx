@@ -1220,19 +1220,19 @@ export default function App(){
                   </div>
                 </div>
                 <div style={{borderTop:"1px solid var(--border)",paddingTop:16}}>
-                <div style={{fontSize:11,fontWeight:600,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:12}}>
-                  TOTAL VIEWERSHIP · {history.length}-DAY TREND
-                </div>
                 {(()=>{
                   const twitchHistory = history
                     .filter((r:any)=>r.twitch_viewers>0)
                     .map((r:any)=>({date:r.date?.slice(5), viewers:r.twitch_viewers}));
-                  if(twitchHistory.length < 2) return (
+                  return (<>
+                  <div style={{fontSize:11,fontWeight:600,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:12}}>
+                    TOTAL VIEWERSHIP · {twitchHistory.length > 1 ? `${twitchHistory.length}-DAY TREND` : "DAILY PULL · TREND BUILDS OVER TIME"}
+                  </div>
+                  {twitchHistory.length < 2 ? (
                     <div style={{color:"var(--muted)",fontSize:11,padding:"20px 0"}}>
-                      Trend builds after a few daily runs
+                      Collected once per day — trend will appear after a few more runs
                     </div>
-                  );
-                  return (
+                  ) : (
                     <ResponsiveContainer width="100%" height={120}>
                       <LineChart data={twitchHistory}>
                         <XAxis dataKey="date" tick={{fontSize:9,fill:"#3d5060"}} axisLine={false} tickLine={false}
@@ -1244,7 +1244,8 @@ export default function App(){
                           strokeWidth={2} dot={false} connectNulls/>
                       </LineChart>
                     </ResponsiveContainer>
-                  );
+                  )}
+                  </>);
                 })()}
                 {/* Top game trends */}
                 {(()=>{
