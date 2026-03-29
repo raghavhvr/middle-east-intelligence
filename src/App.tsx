@@ -113,15 +113,17 @@ function CategoryCard({
             {!hasRealData && <span style={{color:"var(--muted)",marginLeft:6,fontSize:8}}>· pending run</span>}
           </div>
         </div>
-        <div className="cat-score-wrap" title="Score = Reddit activity (60%) + News volume (40%). 0–99 scale.">
+        <div className="cat-score-wrap" data-tip="Score = Reddit activity (60%) +
+News volume (40%). Scale 0–99.">
           <div className="cat-score" style={{opacity:hasRealData?1:0.4,cursor:"help"}}>{displayScore}</div>
           {baselineAvg !== null && (
             <div style={{fontSize:9,color:"rgba(255,255,255,0.35)",fontFamily:"var(--sans)",fontWeight:500,marginTop:1}}
-              title="30-day average for this market">
+              data-tip="30-day average score for this
+category in this market">
               avg {baselineAvg}
             </div>
           )}
-          <div className={`cat-trend ${trend>0?"up":trend<0?"down":"flat"}`} title="Change vs oldest signal in sparkline (7-day movement)">
+          <div className={`cat-trend ${trend>0?"up":trend<0?"down":"flat"}`} data-tip="7-day movement: today vs 7 days ago">
             {trend>0?"▲":trend<0?"▼":"→"} {Math.abs(Math.round(trend))}
           </div>
         </div>
@@ -525,6 +527,19 @@ export default function App(){
             radial-gradient(ellipse at 90% 100%,rgba(147,223,227,0.06) 0%,transparent 50%),
             radial-gradient(ellipse at 50% 50%,rgba(84,101,255,0.04) 0%,transparent 70%);}
 
+
+        /* ── Custom tooltips (title attr works on interactive elements; use data-tip for divs) ── */
+        [data-tip]{position:relative;cursor:help;}
+        [data-tip]::after{
+          content:attr(data-tip);
+          position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);
+          background:#0a1628;border:1px solid var(--border2);color:rgba(255,255,255,0.8);
+          font-family:var(--sans);font-size:10px;font-weight:400;line-height:1.5;
+          padding:6px 10px;border-radius:4px;white-space:pre-wrap;max-width:280px;
+          text-align:center;z-index:999;pointer-events:none;
+          opacity:0;transition:opacity .15s;
+        }
+        [data-tip]:hover::after{opacity:1;}
         /* ── Top bar wrapper (header + market nav stick together) ── */
         .top-bar{position:sticky;top:0;z-index:100;background:rgba(0,0,58,0.97);backdrop-filter:blur(20px);}
         /* ── Header ── */
@@ -939,7 +954,9 @@ export default function App(){
 
         {/* ── Market Heatmap ── */}
         <div>
-          <div className="sec" title="Each cell = avg signal score for that market × category. Reddit (60%) + geo-filtered Google News (40%). Click any cell to drill into that market + category.">Market Heatmap · Signal Intensity by Market & Category</div>
+          <div className="sec" data-tip="Each cell = avg signal score.
+Reddit (60%) + geo-filtered News (40%).
+Click any cell to drill in.">Market Heatmap · Signal Intensity by Market & Category</div>
           <div className="card" style={{overflowX:"auto",padding:"20px 20px 16px"}}>
             {/* Legend */}
             <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,justifyContent:"flex-end"}}>
@@ -1041,7 +1058,9 @@ export default function App(){
 
         {/* ── Trending Topics ── */}
         <div>
-          <div className="sec" title="Top trending search topics pulled from Google Trends RSS for each market today. Classified into Sport/Ent vs Crisis buckets using keyword matching.">Trending Topics · Google RSS · Today</div>
+          <div className="sec" data-tip="Top trending topics from Google Trends
+RSS per market. Classified into Sport/Ent
+vs Crisis by keyword matching.">Trending Topics · Google RSS · Today</div>
           <div className="topics-grid">
             {Object.entries(MARKET_FLAGS).map(([market,flag])=>{
               const r=rss[market]||{};
@@ -1077,7 +1096,9 @@ export default function App(){
         {/* ── Radar + Long-term ── */}
         <div className="analysis-grid">
           <div className="card">
-            <div className="card-title" title="Radar showing relative signal strength across all 6 categories for the selected market. Each axis = avg score for that category, normalised 0–99.">Category Radar · {activeMarket}</div>
+            <div className="card-title" data-tip="Relative signal strength across
+6 categories. Each axis = avg
+category score, 0–99.">Category Radar · {activeMarket}</div>
             <div className="card-sub">Signal strength by category — Reddit + News blended, 0–99 scale</div>
             <ResponsiveContainer width="100%" height={260}>
               <RadarChart data={radarData} margin={{top:10,right:20,bottom:10,left:20}}>
@@ -1092,7 +1113,9 @@ export default function App(){
           </div>
 
           <div className="card">
-            <div className="card-title" title="Daily average of all signal scores within each category for this market. Backfill uses weekly Reddit buckets with ±15% jitter — real daily data starts from first workflow run.">Long-term Category Trends · {activeMarket}</div>
+            <div className="card-title" data-tip="Daily avg of all signals per category.
+Backfill = weekly Reddit buckets ±15%.
+Real data from first workflow run.">Long-term Category Trends · {activeMarket}</div>
             <div className="card-sub">Daily avg signal index per category — Reddit (60%) + News (40%) blended</div>
             {history.length > 0 ? (
               <>
@@ -1141,9 +1164,9 @@ export default function App(){
           <div>
             <div className="sec">Live Gaming · Twitch · Right Now</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-              {/* Today snapshot */}
-              <div className="card">
-                <div className="twitch-row">
+              {/* Single card: bar chart + viewership trend below */}
+              <div className="card" style={{gridColumn:"1/-1"}}>
+                <div style={{display:"grid",gridTemplateColumns:"auto 1fr",gap:24,alignItems:"center",marginBottom:20}}>
                   <div className="twitch-stat">
                     <div className="twitch-num" title="Total concurrent viewers across all live streams on Twitch at collection time (09:00 GST daily)">{fmt(twitch.total_viewers||0)}</div>
                     <div className="twitch-lbl">Live Viewers</div>
@@ -1164,9 +1187,7 @@ export default function App(){
                     })}
                   </div>
                 </div>
-              </div>
-              {/* Viewership trend */}
-              <div className="card">
+                <div style={{borderTop:"1px solid var(--border)",paddingTop:16}}>
                 <div style={{fontSize:11,fontWeight:600,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:12}}>
                   TOTAL VIEWERSHIP · {history.length}-DAY TREND
                 </div>
@@ -1236,7 +1257,8 @@ export default function App(){
                     </div>
                   );
                 })()}
-              </div>
+              </div>{/* end border-top trend section */}
+              </div>{/* end single card */}
             </div>
           </div>
         )}
