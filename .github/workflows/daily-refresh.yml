@@ -2,8 +2,8 @@ name: Daily Pulse Refresh
 
 on:
   schedule:
-    - cron: '0 5 * * *'   # Primary:  05:00 UTC = 09:00 GST
-    - cron: '0 6 * * *'   # Fallback: 06:00 UTC = 10:00 GST (in case GitHub skips the first)
+    - cron: '0 3 * * *'   # Primary:  03:00 UTC = 06:00 GST
+    - cron: '0 6 * * *'   # Fallback: 06:00 UTC = 09:00 GST (in case GitHub skips the first)
   workflow_dispatch:       # Manual trigger from Actions tab
 
 jobs:
